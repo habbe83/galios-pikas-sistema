@@ -12,7 +12,7 @@ PASSWORD = os.environ.get("PANEL_PASSWORD", "")
 SECRET = (os.environ.get("PANEL_SECRET") or PASSWORD or "x").encode()
 TRIG = os.path.join(db.DATA, "triggers")
 AGENTS = {"maps": "B2B medžiotojas (Google Maps)", "zvalgas": "Žvalgas (karšti klientai)",
-          "tikrintojas": "Tikrintojas (rekvizitai.lt)", "rasytojas": "Pasiūlymų rašytojas", "analitikas": "Analitikas"}
+          "tikrintojas": "Tikrintojas (rekvizitai.lt)", "socialai": "Socialinių tinklų žvalgas (Facebook)", "rasytojas": "Pasiūlymų rašytojas", "analitikas": "Analitikas"}
 STATUS_LT = {"naujas": "Naujas", "laiskas_paruostas": "Laiškas paruoštas", "issiustas": "Išsiųsta",
              "atsake": "Atsakė", "klientas": "Klientas ✔", "atmestas": "🗑 Šiukšliadėžė"}
 e = lambda s: html.escape(str(s if s is not None else ""))
@@ -240,7 +240,7 @@ document.addEventListener('submit',async ev=>{const f=ev.target,m=f.dataset.ajax
         h = "<h2>Agentai</h2><div class='box'><div class='muted' style='margin-bottom:10px'>Agentai dirba pagal grafiką automatiškai. Gali paleisti ir rankiniu būdu.</div><div class='row'>"
         for k, v in AGENTS.items():
             h += f'<form class="inline" method="post" action="/paleisti"><input type="hidden" name="agent" value="{k}"><button class="btn g">▶ {e(v)}</button></form>'
-        h += """</div><div class="muted" style="margin-top:10px">Grafikas: B2B medžiotojas – kasdien 03:10 · Žvalgas – kasdien 07:40 ir 17:40 · Tikrintojas – kasdien 05:30 · Rašytojas – darbo dienomis 08:30 · Analitikas – pirmadieniais 07:15</div></div>"""
+        h += """</div><div class="muted" style="margin-top:10px">Grafikas: B2B medžiotojas – kasdien 03:10 · Žvalgas – kasdien 07:40 ir 17:40 · Tikrintojas – kasdien 05:30 · Socialinių tinklų žvalgas – kasdien 12:10 · Rašytojas – darbo dienomis 08:30 · Analitikas – pirmadieniais 07:15</div></div>"""
         rows = c.execute("SELECT * FROM runs ORDER BY id DESC LIMIT 60").fetchall()
         h += "<table><tr><th>Agentas</th><th>Pradžia</th><th>Pabaiga</th><th>Būsena</th><th>Rezultatas</th></tr>"
         for r in rows:
@@ -269,6 +269,12 @@ document.addEventListener('submit',async ev=>{const f=ev.target,m=f.dataset.ajax
 <input name="smtp_user" value="{e(s.get('smtp_user', 'info@galiospikas.lt'))}"><br><br>
 <input name="smtp_password" type="password" placeholder="Pašto slaptažodis (palik tuščią, jei nekeiti)"><br><br>
 <label class="muted">Maks. laiškų per dieną</label><input name="daily_limit" value="{e(s.get('daily_limit', 15))}" style="max-width:120px"></div>
+<div class="box"><b>Apify – Facebook įrašų paieška</b> {mark('apify_token')}<p class="muted">console.apify.com → Settings → API &amp; Integrations → nukopijuok „Personal API token“. Nemokamas planas: 5 $/mėn. Kaina ~0,005 $ už įrašą (15 įrašų × 3 paieškos ≈ 0,23 $/d.). Rekomenduojama Apify'e nustatyti mėnesio limitą: console.apify.com/billing#/limits</p>
+<input name="apify_token" type="password" placeholder="Apify token (palik tuščią, jei nekeiti)"><br><br>
+<div class="row"><label class="muted">Įrašų per paiešką</label><input name="apify_posts" value="{e(s.get('apify_posts', 15))}" style="max-width:90px">
+<label class="muted">Paieškų per dieną</label><input name="apify_queries" value="{e(s.get('apify_queries', 3))}" style="max-width:90px"></div><br>
+<label class="muted">Viešos Facebook grupės (po vieną nuorodą eilutėje, pvz. BMW / VAG / auto problemų grupės)</label>
+<textarea name="fb_groups" style="min-height:90px">{e(s.get('fb_groups', ''))}</textarea></div>
 <button class="btn">Išsaugoti</button></form>
 <form method="post" action="/testas-pasto" style="margin-top:12px"><button class="btn g">✉ Išbandyti paštą</button></form>"""
         return page("Nustatymai", h, "nustatymai")
@@ -334,10 +340,16 @@ document.addEventListener('submit',async ev=>{const f=ev.target,m=f.dataset.ajax
             return self.redirect("/nustatymai?testas=" + urllib.parse.quote(res))
         if p == "/nustatymai":
             s = db.load_settings()
-            for k in ("claude_token", "smtp_password"):
+            for k in ("claude_token", "smtp_password", "apify_token"):
                 if f.get(k, "").strip():
                     s[k] = f[k].strip()
             s["smtp_user"] = f.get("smtp_user", "info@galiospikas.lt").strip()
+            s["fb_groups"] = f.get("fb_groups", "").strip()
+            for k, d, lo, hi in (("apify_posts", 15, 5, 100), ("apify_queries", 3, 1, 8)):
+                try:
+                    s[k] = max(lo, min(hi, int(f.get(k) or d)))
+                except ValueError:
+                    s[k] = d
             try:
                 s["daily_limit"] = max(1, min(100, int(f.get("daily_limit") or 15)))
             except ValueError:

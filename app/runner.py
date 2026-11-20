@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Galios Pikas agentų paleidiklis: grafikas + rankiniai paleidimai."""
-import csv, io, json, os, subprocess, sys, time, traceback, urllib.request
+import csv, io, json, os, subprocess, sys, time, traceback, urllib.parse, urllib.request
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -22,6 +22,7 @@ SCHEDULE = [
     ("zvalgas", range(7), 7, 40),
     ("zvalgas", range(7), 17, 40),
     ("tikrintojas", range(7), 5, 30),
+    ("socialai", range(7), 12, 10),
     ("rasytojas", range(5), 8, 30),
     ("analitikas", [0], 7, 15),
 ]
@@ -84,6 +85,7 @@ def cleanup():
 LLM_AGENTS = {
     "zvalgas": "Tu esi ŽVALGAS. Atlik užduotį pagal /app/agents/zvalgas.md. Dirbk savarankiškai iki galo.",
     "rasytojas": "Tu esi PASIŪLYMŲ RAŠYTOJAS. Atlik užduotį pagal /app/agents/rasytojas.md. Dirbk savarankiškai iki galo.",
+    "socialai": "Tu esi SOCIALINIŲ TINKLŲ ŽVALGAS. Atlik užduotį pagal /app/agents/socialai.md. Dirbk savarankiškai iki galo.",
     "tikrintojas": "Tu esi TIKRINTOJAS. Atlik užduotį pagal /app/agents/tikrintojas.md. Dirbk savarankiškai iki galo.",
     "analitikas": "Tu esi ANALITIKAS. Atlik užduotį pagal /app/agents/analitikas.md.",
 }
@@ -117,6 +119,78 @@ def run_claude(agent):
         return ("ok" if p.returncode == 0 else "klaida"), out.strip()
     except subprocess.TimeoutExpired:
         return "klaida", "Viršytas laikas (45 min)."
+
+
+SOCIAL_QUERIES = [
+    "DPF klaida", "EGR klaida", "AdBlue klaida", "P2002 klaida", "P20EE", "chiptuning Vilnius",
+    "galios didinimas Vilnius", "kas išprogramuotų", "ECU remontas", "neužsiveda imobilaizeris",
+    "automobilis avariniame režime", "sunkvežimis AdBlue klaida", "karštas sunkiai užsiveda",
+    "sklendžių klaida", "variklio klaida Vilnius", "kompiuterinė diagnostika Vilnius",
+]
+APIFY = "https://api.apify.com/v2"
+
+
+def apify_items(token, actor, run_input, items):
+    # mokama pagal rezultatą (~0,005 $ už įrašą); maxItems ir maxTotalChargeUsd – griežtos ribos
+    cap = max(0.5, round(items * 0.005 * 1.3, 2))
+    q = urllib.parse.urlencode({"maxItems": items, "maxTotalChargeUsd": f"{cap:.2f}", "timeout": 280})
+    req = urllib.request.Request(f"{APIFY}/acts/{actor}/run-sync-get-dataset-items?{q}", method="POST",
+                                 data=json.dumps(run_input).encode(),
+                                 headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"})
+    with urllib.request.urlopen(req, timeout=320) as r:
+        data = json.loads(r.read() or b"[]")
+    return data if isinstance(data, list) else []
+
+
+def _trim(o, n=600):
+    if isinstance(o, dict):
+        return {k: _trim(v, n) for k, v in o.items() if v not in (None, "", [], {}) and not str(k).lower().startswith(("image", "thumb", "video", "media", "attach"))}
+    if isinstance(o, list):
+        return [_trim(v, n) for v in o[:15]]
+    if isinstance(o, str):
+        return o[:n]
+    return o
+
+
+def run_social(state):
+    s = db.load_settings()
+    token = s.get("apify_token", "").strip()
+    if not token:
+        return "praleista", "Nėra Apify rakto. Įvesk jį dashboard'e → Nustatymai."
+    per = max(5, min(100, int(s.get("apify_posts", 15) or 15)))
+    nq = max(1, min(8, int(s.get("apify_queries", 3) or 3)))
+    i = state.get("social_q", 0)
+    queries = [SOCIAL_QUERIES[(i + k) % len(SOCIAL_QUERIES)] for k in range(nq)]
+    state["social_q"] = i + nq
+    groups = [g.strip() for g in s.get("fb_groups", "").splitlines() if g.strip().startswith("http")]
+    gi = state.get("social_g", 0)
+    pick = [groups[(gi + k) % len(groups)] for k in range(min(2, len(groups)))] if groups else []
+    state["social_g"] = gi + len(pick)
+    save_state(state)
+    posts, log = [], []
+    for q in queries:
+        try:
+            got = apify_items(token, "scraper_one~facebook-posts-search", {"query": q, "resultsCount": per, "searchType": "latest"}, per)
+            posts += [{"paieska": q, "irasas": _trim(x)} for x in got]
+            log.append(f"„{q}“: {len(got)}")
+        except Exception as ex:
+            log.append(f"„{q}“: klaida {ex}")
+    for g in pick:
+        try:
+            got = apify_items(token, "apify~facebook-groups-scraper", {"startUrls": [{"url": g}], "resultsLimit": per}, per)
+            posts += [{"grupe": g, "irasas": _trim(x)} for x in got]
+            log.append(f"grupė {g}: {len(got)}")
+        except Exception as ex:
+            log.append(f"grupė {g}: klaida {ex}")
+    work = "/tmp/work_socialai"
+    os.makedirs(work, exist_ok=True)
+    with open(f"{work}/posts.json", "w", encoding="utf-8") as f:
+        json.dump(posts, f, ensure_ascii=False, indent=1)
+    head = f"Facebook (Apify): {', '.join(log)}. Iš viso įrašų: {len(posts)}."
+    if not posts:
+        return "ok", head + " Nėra ką analizuoti."
+    st, out = run_claude("socialai")
+    return st, head + "\n\n" + out
 
 
 def http_json(method, url, body=None, timeout=60):
@@ -178,6 +252,8 @@ def execute(agent, state):
     try:
         if agent == "maps":
             status, summary = run_maps(state)
+        elif agent == "socialai":
+            status, summary = run_social(state)
         else:
             status, summary = run_claude(agent)
     except Exception as e:
