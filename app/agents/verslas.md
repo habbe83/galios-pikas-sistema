@@ -17,7 +17,7 @@
 Chiptuning nuo 120 €. Kitų kainų nenurodyk – rašyk „kaina priklauso nuo automobilio, pasakysime per kelias minutes“.
 
 ## Kas yra geras klientas
-**Regionas: tik Vilnius ir Vilniaus rajonas.** Netinka: detalių parduotuvės, padangų/ratų servisai, plovyklos, kėbulų/dažymo, stiklų, duslintuvų, evakuatoriai, konkurentai (chiptuning).
+**Regionas: tik Vilnius ir Vilniaus rajonas.** **Pagrindinis taikinys – maži, nepriklausomi autoservisai.** Netinka: oficialūs atstovai, naujų automobilių salonai, dideli tinklai, detalių parduotuvės, padangų/ratų servisai, plovyklos, kėbulų/dažymo, stiklų, duslintuvų, evakuatoriai, konkurentai (chiptuning).
 
 - **B2B (geriausi):** autoservisai be programavimo įrangos (gali perduoti darbus), automobilių prekeiviai / importuotojai, autosalonai, įmonės su automobilių ar sunkvežimių parkais (transporto, logistikos, statybų įmonės), sunkvežimių servisai, motociklų servisai, taksi / pervežimų įmonės.
 - **Karšti (privatūs):** žmonės, kurie ŠIUO METU ieško paslaugos (užklausos paslaugos.lt, skelbimai „ieškau“, forumai). Tikslinis regionas – Vilnius ir Vilniaus rajonas.

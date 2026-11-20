@@ -28,16 +28,29 @@ SCHEDULE = [
 
 MAPS_BATCHES = [
     ["autoservisas Vilnius", "automobilių remontas Vilnius"],
-    ["sunkvežimių servisas Vilnius", "transporto įmonė Vilnius", "logistikos įmonė Vilnius"],
-    ["automobilių prekyba Vilnius", "naudotų automobilių aikštelė Vilnius"],
-    ["motociklų servisas Vilnius", "autonuoma Vilnius", "taksi įmonė Vilnius"],
-    ["autoservisas Vilniaus rajonas", "krovinių pervežimas Vilnius"],
+    ["autoservisas Naujininkai", "autoservisas Naujoji Vilnia", "autoservisas Rasos"],
+    ["autoservisas Žirmūnai", "autoservisas Antakalnis", "autoservisas Baltupiai"],
+    ["autoservisas Šeškinė", "autoservisas Fabijoniškės", "autoservisas Pašilaičiai"],
+    ["autoservisas Pilaitė", "autoservisas Justiniškės", "autoservisas Karoliniškės"],
+    ["autoservisas Lazdynai", "autoservisas Grigiškės", "autoservisas Vilkpėdė"],
+    ["autoservisas Naujamiestis Vilnius", "autoservisas Šnipiškės", "autoservisas Žvėrynas"],
+    ["dyzelinių variklių remontas Vilnius", "automobilių elektrikas Vilnius", "pavarų dėžių remontas Vilnius"],
+    ["sunkvežimių servisas Vilnius", "transporto įmonė Vilnius", "krovinių pervežimas Vilnius"],
+    ["motociklų servisas Vilnius", "mikroautobusų remontas Vilnius", "automobilių diagnostika Vilnius"],
+    ["autoservisas Vilniaus rajonas", "autoservisas Nemenčinė", "autoservisas Pabradė"],
 ]
+
 
 # Netinkami (nenaudoja Galios Piko paslaugų) arba konkurentai
 EXCLUDE = ("detal", "dalys", "dalių", "parduotuv", "padang", "ratų", "ratai", "plovykl", "duslintuv", "stikl",
            "akumuliator", "tepal", "kėbul", "dažym", "chip", "tuning", "galios didinimas", "autodalys",
-           "auto parts", "parts", "shop", "store", "kondicion", "salono valym", "evakuat", "techninė apžiūra")
+           "auto parts", "parts", "shop", "store", "kondicion", "salono valym", "evakuat", "techninė apžiūra",
+           # oficialūs atstovai, automobilių pardavėjai, dideli tinklai (markių pavadinimų NEFILTRUOJAM –
+           # mažas „BMW servisas“ yra geras klientas)
+           "atstov", "oficial", "dealer", "naujų automobilių", "naujų auto", "autosalon", "salonas",
+           "prekyba", "pardav", "aikštel", "automobilių turgus", "car sales", "used cars", "auto plius",
+           "moller", "möller", "krasta", "inchcape", "silberauto", "vaitėnas", "autobrava", "tokvila",
+           "unimodus", "rolinga", "amber auto", "lancasterauto", "autokurtas", "renault retail")
 
 
 def is_bad(name, cat, addr):
