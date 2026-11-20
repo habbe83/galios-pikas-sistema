@@ -237,16 +237,18 @@ document.addEventListener('submit',async ev=>{const f=ev.target,m=f.dataset.ajax
         return page("Laiškai", h, "laiskai")
 
     def runs(self, c):
-        h = "<h2>Agentai</h2><div class='box'><div class='muted' style='margin-bottom:10px'>Agentai dirba pagal grafiką automatiškai. Gali paleisti ir rankiniu būdu.</div><div class='row'>"
+        h = "<h2>Agentai</h2><div class='box'><div class='muted' style='margin-bottom:10px'>Agentai dirba pagal grafiką automatiškai. Gali paleisti ir rankiniu būdu – paspaudus atsiranda „eilėje“, nes AI agentai dirba po vieną (Google Maps – lygiagrečiai). Puslapis atsinaujina pats.</div><div class='row'>"
         for k, v in AGENTS.items():
             h += f'<form class="inline" method="post" action="/paleisti"><input type="hidden" name="agent" value="{k}"><button class="btn g">▶ {e(v)}</button></form>'
         h += """</div><div class="muted" style="margin-top:10px">Grafikas: B2B medžiotojas – kasdien 03:10 · Žvalgas – kasdien 07:40 ir 17:40 · Tikrintojas – kasdien 05:30 · Socialinių tinklų žvalgas – kasdien 12:10 · Rašytojas – darbo dienomis 08:30 · Analitikas – pirmadieniais 07:15</div></div>"""
         rows = c.execute("SELECT * FROM runs ORDER BY id DESC LIMIT 60").fetchall()
         h += "<table><tr><th>Agentas</th><th>Pradžia</th><th>Pabaiga</th><th>Būsena</th><th>Rezultatas</th></tr>"
         for r in rows:
-            cls = "ok" if r["status"] == "ok" else ("bad" if r["status"] == "klaida" else "")
+            cls = "ok" if r["status"] == "ok" else ("bad" if r["status"] in ("klaida", "nutraukta") else "")
             h += (f'<tr><td>{e(AGENTS.get(r["agent"], r["agent"]))}</td><td>{e(r["started_at"])}</td><td>{e(r["finished_at"])}</td>'
                   f'<td class="{cls}">{e(r["status"])}</td><td><details><summary class="muted">rodyti</summary><pre>{e(r["summary"])}</pre></details></td></tr>')
+        if any(r["status"] in ("eilėje", "vyksta") for r in rows):
+            h += '<script>setTimeout(()=>{if(!document.querySelector("details[open]"))location.reload()},15000)</script>'
         return page("Agentai", h + "</table>", "agentai")
 
     def reports(self, c):
@@ -304,8 +306,11 @@ document.addEventListener('submit',async ev=>{const f=ev.target,m=f.dataset.ajax
             c.executemany("UPDATE leads SET status=?, updated_at=? WHERE id=?", [(new, db.now(), i) for i in f["_ids"]]); c.commit()
             return self.redirect(self.headers.get("Referer") or "/klientai")
         if p == "/paleisti" and f.get("agent") in AGENTS:
-            os.makedirs(TRIG, exist_ok=True)
-            open(os.path.join(TRIG, f"{f['agent']}.{int(time.time())}"), "w").close()
+            ag = f["agent"]
+            if not c.execute("SELECT 1 FROM runs WHERE agent=? AND status IN ('eilėje','vyksta')", (ag,)).fetchone():
+                cur = c.execute("INSERT INTO runs(agent,started_at,status) VALUES(?,?,'eilėje')", (ag, db.now())); c.commit()
+                os.makedirs(TRIG, exist_ok=True)
+                open(os.path.join(TRIG, f"{ag}.{cur.lastrowid}"), "w").close()
             return self.redirect("/agentai")
         if p == "/laiskas":
             did, a = f.get("id"), f.get("a")

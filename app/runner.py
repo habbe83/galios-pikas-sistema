@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Galios Pikas agentų paleidiklis: grafikas + rankiniai paleidimai."""
-import csv, io, json, os, subprocess, sys, time, traceback, urllib.parse, urllib.request
+import csv, io, json, os, subprocess, sys, threading, time, traceback, urllib.parse, urllib.request
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -246,9 +246,12 @@ def run_maps(state):
     return "ok", f"Raktažodžiai: {', '.join(kws)}. Rasta {seen} įmonių, naujų įrašyta: {new}."
 
 
-def execute(agent, state):
+def execute(agent, state, rid=None):
     c = db.conn()
-    rid = db.log_run_start(c, agent)
+    if rid:
+        c.execute("UPDATE runs SET status='vyksta', started_at=? WHERE id=?", (db.now(), rid)); c.commit()
+    else:
+        rid = db.log_run_start(c, agent)
     try:
         if agent == "maps":
             status, summary = run_maps(state)
@@ -262,18 +265,33 @@ def execute(agent, state):
     print(f"[{datetime.now(TZ):%F %T}] {agent}: {status}", flush=True)
 
 
+MAPS_LOCK = threading.Lock()
+
+
+def run_maps_bg(rid):
+    def go():
+        with MAPS_LOCK:
+            execute("maps", load_state(), rid)
+    threading.Thread(target=go, daemon=True).start()
+
+
 def main():
     os.makedirs(TRIG, exist_ok=True)
     print("Runner paleistas", flush=True)
     cleanup()
+    c = db.conn()
+    c.execute("UPDATE runs SET status='nutraukta', finished_at=? WHERE status='vyksta'", (db.now(),)); c.commit()
     while True:
         state = load_state()
-        queue = []
+        queue = []  # (agent, rid, trigger_file)
         for f in sorted(os.listdir(TRIG)):
-            agent = f.split(".")[0]
-            os.remove(os.path.join(TRIG, f))
-            if agent == "maps" or agent in LLM_AGENTS:
-                queue.append(agent)
+            parts = f.split(".")
+            agent = parts[0]
+            rid = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() and len(parts[1]) < 9 else None
+            if agent == "maps" or agent in LLM_AGENTS or agent == "socialai":
+                queue.append((agent, rid, os.path.join(TRIG, f)))
+            else:
+                os.remove(os.path.join(TRIG, f))
         n = datetime.now(TZ)
         for agent, days, h, m in SCHEDULE:
             key = f"{agent}@{h:02d}{m:02d}"
@@ -281,12 +299,28 @@ def main():
             if n.weekday() in days and (n.hour, n.minute) >= (h, m) and state.get(key) != today:
                 # tik jei vėluojam ne daugiau nei 3 val. (kad po perkrovimo nepaleistų visko iš karto)
                 if (n.hour * 60 + n.minute) - (h * 60 + m) <= 180:
-                    queue.append(agent)
+                    queue.append((agent, None, None))
                 state[key] = today
         save_state(state)
-        for agent in dict.fromkeys(queue):
-            execute(agent, load_state())
-        time.sleep(30)
+        done = set()
+        for agent, rid, tf in queue:
+            if agent in done:
+                if rid:
+                    c = db.conn(); c.execute("UPDATE runs SET status='praleista', finished_at=?, summary='Jau buvo paleista' WHERE id=?", (db.now(), rid)); c.commit()
+                if tf and os.path.exists(tf): os.remove(tf)
+                continue
+            done.add(agent)
+            if tf and os.path.exists(tf):
+                os.remove(tf)
+            if agent == "maps":
+                if MAPS_LOCK.locked():
+                    if rid:
+                        c = db.conn(); c.execute("UPDATE runs SET status='praleista', finished_at=?, summary='Google Maps paieška jau vyksta' WHERE id=?", (db.now(), rid)); c.commit()
+                    continue
+                run_maps_bg(rid)
+            else:
+                execute(agent, load_state(), rid)
+        time.sleep(15)
 
 
 if __name__ == "__main__":
