@@ -17,6 +17,7 @@ DATA = os.environ.get("GP_DATA", "/data")
 DB_PATH = os.path.join(DATA, "galiospikas.db")
 SETTINGS_PATH = os.path.join(DATA, "settings.json")
 
+ENRICH_COLS = ["company_code", "employees", "vehicles", "revenue", "director", "activity"]
 LEAD_STATUSES = ["naujas", "laiskas_paruostas", "issiustas", "atsake", "klientas", "atmestas"]
 
 SCHEMA = """
@@ -56,6 +57,10 @@ def conn():
     c.row_factory = sqlite3.Row
     c.execute("PRAGMA journal_mode=WAL")
     c.executescript(SCHEMA)
+    have = {r[1] for r in c.execute("PRAGMA table_info(leads)")}
+    for col in ENRICH_COLS + ["enriched_at"]:
+        if col not in have:
+            c.execute(f"ALTER TABLE leads ADD COLUMN {col} TEXT")
     return c
 
 
@@ -130,11 +135,15 @@ def main():
     sp = p.add_subparsers(dest="cmd", required=True)
     a = sp.add_parser("leads"); a.add_argument("--kind"); a.add_argument("--status"); a.add_argument("--limit", type=int, default=20)
     a.add_argument("--need-contact", action="store_true", help="tik su el. paštu arba svetaine")
+    a.add_argument("--not-enriched", action="store_true", help="dar netikrinti rekvizitai.lt")
     a = sp.add_parser("lead"); a.add_argument("id", type=int)
     a = sp.add_parser("add-lead")
     for f in ("kind", "source", "name", "category", "city", "address", "phone", "email", "website", "url", "rating", "note"):
         a.add_argument("--" + f)
     a = sp.add_parser("add-draft"); a.add_argument("--lead", type=int, required=True); a.add_argument("--subject", required=True); a.add_argument("--body-file", required=True)
+    a = sp.add_parser("enrich"); a.add_argument("id", type=int)
+    for f in ENRICH_COLS + ["email", "phone", "website"]:
+        a.add_argument("--" + f.replace("_", "-"))
     a = sp.add_parser("set-status"); a.add_argument("id", type=int); a.add_argument("status", choices=LEAD_STATUSES)
     a = sp.add_parser("add-report"); a.add_argument("--title", required=True); a.add_argument("--body-file", required=True)
     sp.add_parser("stats")
@@ -147,6 +156,7 @@ def main():
         if args.kind: q += " AND kind=?"; prm.append(args.kind)
         if args.status: q += " AND status=?"; prm.append(args.status)
         if args.need_contact: q += " AND (IFNULL(email,'')<>'' OR IFNULL(website,'')<>'')"
+        if args.not_enriched: q += " AND enriched_at IS NULL"
         q += " ORDER BY id DESC LIMIT ?"; prm.append(args.limit)
         print(json.dumps([dict(r) for r in c.execute(q, prm)], ensure_ascii=False, indent=1))
     elif args.cmd == "lead":
@@ -166,6 +176,15 @@ def main():
         c.execute("INSERT INTO drafts(lead_id,subject,body,status,created_at) VALUES(?,?,?,'laukia',?)", (args.lead, args.subject, body, now()))
         c.execute("UPDATE leads SET status='laiskas_paruostas', updated_at=? WHERE id=?", (now(), args.lead))
         c.commit(); print("OK")
+    elif args.cmd == "enrich":
+        sets, vals = ["enriched_at=?", "updated_at=?"], [now(), now()]
+        for f in ENRICH_COLS:
+            v = getattr(args, f)
+            if v: sets.append(f"{f}=?"); vals.append(v.strip())
+        for f in ("email", "phone", "website"):  # tik jei tušti
+            v = getattr(args, f)
+            if v: sets.append(f"{f}=COALESCE(NULLIF({f},''), ?)"); vals.append(v.strip())
+        c.execute(f"UPDATE leads SET {', '.join(sets)} WHERE id=?", vals + [args.id]); c.commit(); print("OK")
     elif args.cmd == "set-status":
         c.execute("UPDATE leads SET status=?, updated_at=? WHERE id=?", (args.status, now(), args.id)); c.commit(); print("OK")
     elif args.cmd == "add-report":

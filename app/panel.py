@@ -12,7 +12,7 @@ PASSWORD = os.environ.get("PANEL_PASSWORD", "")
 SECRET = (os.environ.get("PANEL_SECRET") or PASSWORD or "x").encode()
 TRIG = os.path.join(db.DATA, "triggers")
 AGENTS = {"maps": "B2B medžiotojas (Google Maps)", "zvalgas": "Žvalgas (karšti klientai)",
-          "rasytojas": "Pasiūlymų rašytojas", "analitikas": "Analitikas"}
+          "tikrintojas": "Tikrintojas (rekvizitai.lt)", "rasytojas": "Pasiūlymų rašytojas", "analitikas": "Analitikas"}
 STATUS_LT = {"naujas": "Naujas", "laiskas_paruostas": "Laiškas paruoštas", "issiustas": "Išsiųsta",
              "atsake": "Atsakė", "klientas": "Klientas ✔", "atmestas": "🗑 Šiukšliadėžė"}
 e = lambda s: html.escape(str(s if s is not None else ""))
@@ -176,7 +176,15 @@ class H(BaseHTTPRequestHandler):
             if actions:
                 a, lbl, cls = ("atkurti", "↩ Atkurti", "g") if trash else ("ismesti", "🗑", "r")
                 act = f'<td><form method="post" action="/siuksliadeze" data-ajax="row"><input type="hidden" name="ids" value="{r["id"]}"><button class="btn {cls}" name="a" value="{a}" title="{"Atkurti" if trash else "Į šiukšliadėžę"}">{lbl}</button></form></td>'
-            t += (f'<tr>{box}<td><b>{e(r["name"])}</b><div class="muted">{e(r["city"])} {e(r["address"])}</div></td>'
+            keys = r.keys()
+            info = " · ".join(x for x in [
+                f'🚚 {e(r["vehicles"])} TP' if "vehicles" in keys and r["vehicles"] else "",
+                f'👥 {e(r["employees"])} darb.' if "employees" in keys and r["employees"] else "",
+                f'💶 {e(r["revenue"])}' if "revenue" in keys and r["revenue"] else "",
+                f'Vadovas: {e(r["director"])}' if "director" in keys and r["director"] else "",
+                f'Veikla: {e(r["activity"])}' if "activity" in keys and r["activity"] else ""] if x)
+            info = f'<div style="font-size:13px;margin-top:4px">{info}</div>' if info else ""
+            t += (f'<tr>{box}<td><b>{e(r["name"])}</b><div class="muted">{e(r["city"])} {e(r["address"])}</div>{info}</td>'
                   f'<td>{e(r["category"])}<div class="muted">{e(r["note"])}</div></td><td>{contacts}</td>'
                   f'<td><span class="pill">{e(r["source"])}</span><div class="muted">{e(r["created_at"])}</div></td><td>{st}</td>{act}</tr>')
         return t + "</table>"
@@ -232,7 +240,7 @@ document.addEventListener('submit',async ev=>{const f=ev.target,m=f.dataset.ajax
         h = "<h2>Agentai</h2><div class='box'><div class='muted' style='margin-bottom:10px'>Agentai dirba pagal grafiką automatiškai. Gali paleisti ir rankiniu būdu.</div><div class='row'>"
         for k, v in AGENTS.items():
             h += f'<form class="inline" method="post" action="/paleisti"><input type="hidden" name="agent" value="{k}"><button class="btn g">▶ {e(v)}</button></form>'
-        h += """</div><div class="muted" style="margin-top:10px">Grafikas: B2B medžiotojas – kasdien 03:10 · Žvalgas – kasdien 07:40 ir 17:40 · Rašytojas – darbo dienomis 08:30 · Analitikas – pirmadieniais 07:15</div></div>"""
+        h += """</div><div class="muted" style="margin-top:10px">Grafikas: B2B medžiotojas – kasdien 03:10 · Žvalgas – kasdien 07:40 ir 17:40 · Tikrintojas – kasdien 05:30 · Rašytojas – darbo dienomis 08:30 · Analitikas – pirmadieniais 07:15</div></div>"""
         rows = c.execute("SELECT * FROM runs ORDER BY id DESC LIMIT 60").fetchall()
         h += "<table><tr><th>Agentas</th><th>Pradžia</th><th>Pabaiga</th><th>Būsena</th><th>Rezultatas</th></tr>"
         for r in rows:

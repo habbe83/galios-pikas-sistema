@@ -21,6 +21,7 @@ SCHEDULE = [
     ("maps", range(7), 3, 10),
     ("zvalgas", range(7), 7, 40),
     ("zvalgas", range(7), 17, 40),
+    ("tikrintojas", range(7), 5, 30),
     ("rasytojas", range(5), 8, 30),
     ("analitikas", [0], 7, 15),
 ]
@@ -58,6 +59,7 @@ def cleanup():
 LLM_AGENTS = {
     "zvalgas": "Tu esi ŽVALGAS. Atlik užduotį pagal /app/agents/zvalgas.md. Dirbk savarankiškai iki galo.",
     "rasytojas": "Tu esi PASIŪLYMŲ RAŠYTOJAS. Atlik užduotį pagal /app/agents/rasytojas.md. Dirbk savarankiškai iki galo.",
+    "tikrintojas": "Tu esi TIKRINTOJAS. Atlik užduotį pagal /app/agents/tikrintojas.md. Dirbk savarankiškai iki galo.",
     "analitikas": "Tu esi ANALITIKAS. Atlik užduotį pagal /app/agents/analitikas.md.",
 }
 

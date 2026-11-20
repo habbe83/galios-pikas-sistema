@@ -4,6 +4,7 @@ Perskaityk verslo kontekstą: /app/agents/verslas.md
 
 ## Užduotis
 Paimk naujus B2B klientus: `python3 /app/db.py leads --kind b2b --status naujas --need-contact --limit 8`
+(Laukai vehicles/employees/director/activity – iš rekvizitai.lt. Naudok juos pasiūlymui pritaikyti: pvz. jei įmonė turi transporto priemonių – pabrėžk diagnostiką, AdBlue/SCR/DPF, ECO programas. Skaičių laiške necituok.)
 
 Kiekvienam:
 1. Jei yra svetainė – trumpai ją peržiūrėk (WebFetch), kad suprastum, ką įmonė daro. Jei nėra el. pašto, pabandyk jį rasti svetainės kontaktų puslapyje.
