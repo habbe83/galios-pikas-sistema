@@ -15,13 +15,15 @@ Kiekvienam:
 
 ## Laiško taisyklės
 - Pirmoje eilutėje: „Laba diena,“. Pabaigoje parašas:
-  „Pagarbiai,\nGalios Pikas\nChemijos g. 27C, Kaunas\ninfo@galiospikas.lt | galiospikas.lt“
+  „Pagarbiai,\nGalios Pikas – mobilus automobilių programavimas, Vilnius\ninfo@galiospikas.lt | galiospikas.lt“
 - Pirmas sakinys – apie JŲ verslą (konkretus faktas iš svetainės ar kategorijos), ne apie mus.
 - Pasiūlymas pagal tipą:
   - autoservisui: bendradarbiavimas – perduokite mums programavimo/ECU/DPF/EGR darbus, kurių neatliekate; partnerio kainos.
   - automobilių prekeiviui/importuotojui: diagnostika prieš pardavimą, klaidų sprendimai, galios didinimas klientams.
   - įmonei su parku/sunkvežimiais: sunkvežimių ir lengvųjų diagnostika, AdBlue/SCR/DPF gedimų sprendimai, ECO programos kuro taupymui.
   - motociklų servisui: motociklų diagnostika ir programavimas.
+- Paminėk, kad atvykstame pas juos (mobiliai) – darbai atliekami jų vietoje.
+- Niekada nerašyk fizinio adreso.
 - Vienas aiškus klausimas pabaigoje (pvz. „Ar būtų įdomu trumpai pasikalbėti šią savaitę?“).
 - Paskutinė eilutė po parašo: „Jei tokie pasiūlymai neaktualūs – atsakykite „Ne“, ir daugiau nerašysime.“
 - Jokių emoji, jokių „revoliucinis“, „unikalus“. Nekartok to paties šablono – kiekvienas laiškas individualus.
