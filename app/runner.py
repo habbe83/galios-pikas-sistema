@@ -21,7 +21,7 @@ SCHEDULE = [
     ("maps", range(7), 3, 10),
     ("zvalgas", range(7), 7, 40),
     ("zvalgas", range(7), 17, 40),
-    ("tikrintojas", range(7), 5, 30),
+    # ("tikrintojas", range(7), 5, 30),  # išjungta: rekvizitai.lt blokuoja automatinį skaitymą
     ("socialai", range(7), 12, 10),
     ("rasytojas", range(5), 8, 30),
     ("analitikas", [0], 7, 15),
@@ -225,6 +225,10 @@ def run_social(state):
         json.dump(posts, f, ensure_ascii=False, indent=1)
     head = f"Facebook (Apify): {', '.join(log)}. Iš viso įrašų: {len(posts)}."
     if not posts:
+        if any("401" in x for x in log):
+            return "klaida", head + "\n\nApify raktas neteisingas (401). Nustatymuose įklijuok „Personal API token“ (prasideda apify_api_)."
+        if any("klaida" in x for x in log):
+            return "klaida", head
         return "ok", head + " Nėra ką analizuoti."
     st, out = run_claude("socialai")
     return st, head + "\n\n" + out
