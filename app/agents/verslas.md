@@ -1,7 +1,7 @@
 # Galios Pikas – verslo kontekstas (visiems agentams)
 
 **Įmonė:** Galios Pikas, automobilių elektronikos ir programavimo servisas.
-**Veikla:** Vilnius ir Vilniaus rajonas, **mobilus servisas – atvykstame pas klientą** (fizinio adreso laiškuose ir pasiūlymuose NENURODYK). **El. paštas:** info@galiospikas.lt. **Svetainė:** galiospikas.lt
+**Veikla:** Vilnius ir Vilniaus rajonas, **mobilus servisas – atvykstame pas klientą** (fizinio adreso laiškuose ir pasiūlymuose NENURODYK). **Tel.:** +37062142133. **El. paštas:** info@galiospikas.lt. **Svetainė:** galiospikas.lt
 **Socialiniai tinklai:** facebook.com/GaliosPikas, instagram.com/galios_pikas
 **Įranga:** Launch X431 PAD V Elite, Xprog 3.
 

@@ -15,7 +15,7 @@ Kiekvienam:
 
 ## Laiško taisyklės
 - Pirmoje eilutėje: „Laba diena,“. Pabaigoje parašas:
-  „Pagarbiai,\nGalios Pikas – mobilus automobilių programavimas, Vilnius\ninfo@galiospikas.lt | galiospikas.lt“
+  „Pagarbiai,\nGalios Pikas – mobilus automobilių programavimas, Vilnius\nTel. +37062142133\ninfo@galiospikas.lt | galiospikas.lt“
 - Pirmas sakinys – trumpai, kas mes: „Esame Galios Pikas – mobilus automobilių programavimas ir diagnostika Vilniuje.“ (galima perfrazuoti).
 - NIEKADA neaprašinėk jų pačių verslo („matome, kad jūs atliekate...“, „jūsų įmonė užsiima...“) – jie tai žino. Svetainę skaityk tik tam, kad parinktum tinkamą pasiūlymą.
 - Tada 1 sakinys – pasiūlymas JŲ tipui (žr. žemiau), ir **paslaugų sąrašas su brūkšneliais (4–6 punktai)**, parinktas jiems aktualiausias iš verslas.md, pvz.:
