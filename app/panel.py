@@ -228,6 +228,10 @@ class H(BaseHTTPRequestHandler):
         s = db.load_settings()
         mark = lambda k: '<span class="ok">✔ įvesta</span>' if s.get(k) else '<span class="bad">nėra</span>'
         msg = '<div class="box ok">Išsaugota.</div>' if q.get("ok") else ""
+        if q.get("testas") == "ok":
+            msg = f'<div class="box ok">✔ Testinis laiškas išsiųstas į {e(s.get("smtp_user", "info@galiospikas.lt"))}. Slaptažodis teisingas.</div>'
+        elif q.get("testas"):
+            msg = f'<div class="box bad">✖ Nepavyko: {e(q.get("testas"))}</div>'
         h = f"""<h2>Nustatymai</h2>{msg}<form method="post" action="/nustatymai">
 <div class="box"><b>Claude prisijungimas agentams</b> {mark('claude_token')}<p class="muted">Savo kompiuteryje terminale paleisk <code>claude setup-token</code>, prisijunk ir įklijuok gautą raktą (prasideda <code>sk-ant-oat</code>). Agentai naudos tavo Claude prenumeratą.</p>
 <input name="claude_token" type="password" placeholder="Palik tuščią, jei nekeiti"></div>
@@ -235,7 +239,8 @@ class H(BaseHTTPRequestHandler):
 <input name="smtp_user" value="{e(s.get('smtp_user', 'info@galiospikas.lt'))}"><br><br>
 <input name="smtp_password" type="password" placeholder="Pašto slaptažodis (palik tuščią, jei nekeiti)"><br><br>
 <label class="muted">Maks. laiškų per dieną</label><input name="daily_limit" value="{e(s.get('daily_limit', 15))}" style="max-width:120px"></div>
-<button class="btn">Išsaugoti</button></form>"""
+<button class="btn">Išsaugoti</button></form>
+<form method="post" action="/testas-pasto" style="margin-top:12px"><button class="btn g">✉ Išbandyti paštą</button></form>"""
         return page("Nustatymai", h, "nustatymai")
 
     # ---------- POST ----------
@@ -284,6 +289,15 @@ class H(BaseHTTPRequestHandler):
                     c.execute("UPDATE drafts SET status='klaida', error=? WHERE id=?", (str(ex)[:500], did))
                 c.commit()
             return self.redirect("/laiskai")
+        if p == "/testas-pasto":
+            s = db.load_settings()
+            try:
+                send_mail(s, s.get("smtp_user") or "info@galiospikas.lt", "Galios Pikas – pašto testas",
+                          "Šis laiškas patvirtina, kad agentų sistema gali siųsti laiškus iš šios dėžutės.")
+                res = "ok"
+            except Exception as ex:
+                res = str(ex)[:200] or "nežinoma klaida"
+            return self.redirect("/nustatymai?testas=" + urllib.parse.quote(res))
         if p == "/nustatymai":
             s = db.load_settings()
             for k in ("claude_token", "smtp_password"):
