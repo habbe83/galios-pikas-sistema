@@ -9,14 +9,16 @@ Kiekvienam:
 1. Jei yra svetainė – trumpai ją peržiūrėk (WebFetch), kad suprastum, ką įmonė daro. Jei nėra el. pašto, pabandyk jį rasti svetainės kontaktų puslapyje.
 2. Nuspręsk, ar įmonė tinkama (žr. „Kas yra geras klientas“). Jei netinkama arba nerandi el. pašto – `python3 /app/db.py set-status <id> atmestas` ir eik toliau.
 3. Jei radai el. paštą, kurio nebuvo – jį įrašyk: `python3 /app/db.py add-lead --kind b2b --source "<tas pats>" --name "<tas pats pavadinimas>" --phone "<tas pats tel>" --email "<rastas>"` (sistema papildys esamą įrašą).
-4. Parašyk laišką (5–8 sakiniai) ir išsaugok:
+4. Parašyk laišką (4–6 sakiniai) ir išsaugok:
    - įrašyk tekstą į /tmp/laiskas_<id>.txt
    - `python3 /app/db.py add-draft --lead <id> --subject "<tema>" --body-file /tmp/laiskas_<id>.txt`
 
 ## Laiško taisyklės
 - Pirmoje eilutėje: „Laba diena,“. Pabaigoje parašas:
   „Pagarbiai,\nGalios Pikas – mobilus automobilių programavimas, Vilnius\ninfo@galiospikas.lt | galiospikas.lt“
-- Pirmas sakinys – apie JŲ verslą (konkretus faktas iš svetainės ar kategorijos), ne apie mus.
+- Pirmas sakinys – trumpai, kas mes: „Esame Galios Pikas – mobilus automobilių programavimas ir diagnostika Vilniuje.“ (galima perfrazuoti).
+- NIEKADA neaprašinėk jų pačių verslo („matome, kad jūs atliekate...“, „jūsų įmonė užsiima...“) – jie tai žino. Svetainę skaityk tik tam, kad parinktum tinkamą pasiūlymą.
+- Antras sakinys – iškart konkretus pasiūlymas JŲ tipui (žr. žemiau). Laiškas 4–6 sakiniai, ne daugiau.
 - Pasiūlymas pagal tipą:
   - autoservisui: bendradarbiavimas – perduokite mums programavimo/ECU/DPF/EGR darbus, kurių neatliekate; partnerio kainos.
   - automobilių prekeiviui/importuotojui: diagnostika prieš pardavimą, klaidų sprendimai, galios didinimas klientams.
