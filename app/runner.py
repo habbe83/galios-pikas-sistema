@@ -26,14 +26,34 @@ SCHEDULE = [
 ]
 
 MAPS_BATCHES = [
-    ["autoservisas Kaunas", "automobilių remontas Kaunas"],
-    ["automobilių prekyba Kaunas", "naudoti automobiliai Kaunas", "automobilių importas iš JAV Kaunas"],
-    ["sunkvežimių servisas Kaunas", "transporto įmonė Kaunas", "logistikos įmonė Kaunas"],
-    ["motociklų servisas Kaunas", "autonuoma Kaunas", "taksi Kaunas"],
-    ["autoservisas Jonava", "autoservisas Kėdainiai", "autoservisas Prienai", "autoservisas Garliava"],
-    ["autoservisas Marijampolė", "autoservisas Alytus", "sunkvežimių servisas Marijampolė"],
-    ["autoservisas Vilnius", "sunkvežimių servisas Vilnius", "automobilių prekyba Vilnius"],
+    ["autoservisas Vilnius", "automobilių remontas Vilnius"],
+    ["sunkvežimių servisas Vilnius", "transporto įmonė Vilnius", "logistikos įmonė Vilnius"],
+    ["automobilių prekyba Vilnius", "naudotų automobilių aikštelė Vilnius"],
+    ["motociklų servisas Vilnius", "autonuoma Vilnius", "taksi įmonė Vilnius"],
+    ["autoservisas Vilniaus rajonas", "krovinių pervežimas Vilnius"],
 ]
+
+# Netinkami (nenaudoja Galios Piko paslaugų) arba konkurentai
+EXCLUDE = ("detal", "dalys", "dalių", "parduotuv", "padang", "ratų", "ratai", "plovykl", "duslintuv", "stikl",
+           "akumuliator", "tepal", "kėbul", "dažym", "chip", "tuning", "galios didinimas", "autodalys",
+           "auto parts", "parts", "shop", "store", "kondicion", "salono valym", "evakuat", "techninė apžiūra")
+
+
+def is_bad(name, cat, addr):
+    low = f"{name} {cat}".lower()
+    return any(w in low for w in EXCLUDE) or ("vilni" not in (addr or "").lower())
+
+
+def cleanup():
+    c = db.conn()
+    n = 0
+    for r in c.execute("SELECT id,name,category,address FROM leads WHERE kind='b2b' AND source='google_maps' AND status='naujas'").fetchall():
+        if is_bad(r["name"], r["category"], r["address"]):
+            c.execute("UPDATE leads SET status='atmestas' WHERE id=?", (r["id"],))
+            n += 1
+    c.commit()
+    print(f"Išvalyta netinkamų: {n}", flush=True)
+
 
 LLM_AGENTS = {
     "zvalgas": "Tu esi ŽVALGAS. Atlik užduotį pagal /app/agents/zvalgas.md. Dirbk savarankiškai iki galo.",
@@ -109,15 +129,14 @@ def run_maps(state):
         if not name:
             continue
         cat = g("category", "categories")
-        low = (name + " " + cat).lower()
-        if any(w in low for w in ("chip", "tuning", "galios didinimas")):
-            continue  # konkurentai
+        addr = g("address", "complete_address")
+        if is_bad(name, cat, addr):
+            continue  # netinkami / ne Vilnius / konkurentai
         emails = g("emails", "email").replace("[", "").replace("]", "").replace('"', "")
         email = emails.split(",")[0].strip() if emails else ""
-        addr = g("address", "complete_address")
         rid = db.add_lead(c, {
             "kind": "b2b", "source": "google_maps", "name": name, "category": cat,
-            "city": kws[0].split()[-1], "address": addr, "phone": g("phone"), "email": email,
+            "city": "Vilnius", "address": addr, "phone": g("phone"), "email": email,
             "website": g("website", "web_site"), "url": g("link", "url", "reviews_link"),
             "rating": g("review_rating", "rating"), "note": "Paieška: " + ", ".join(kws),
         })
@@ -143,6 +162,7 @@ def execute(agent, state):
 def main():
     os.makedirs(TRIG, exist_ok=True)
     print("Runner paleistas", flush=True)
+    cleanup()
     while True:
         state = load_state()
         queue = []

@@ -3,16 +3,16 @@
 Perskaityk verslo kontekstą: /app/agents/verslas.md
 
 ## Užduotis
-Surask naujas, realias klientų užklausas (paskutinių ~14 dienų) Lietuvoje, geriausia Kaune ir aplink, kurioms tinka Galios Piko paslaugos.
+Surask naujas, realias klientų užklausas (paskutinių ~14 dienų) Vilniuje ir Vilniaus rajone, kurioms tinka Galios Piko paslaugos.
 
 ## Kur ieškoti (eik iš eilės)
 1. paslaugos.lt kategorijų „Klientų užklausos“ puslapiai, pvz.:
-   - https://paslaugos.lt/egr-isprogramavimas/kaune
+   - https://paslaugos.lt/egr-isprogramavimas/vilniuje
    - https://paslaugos.lt/automobiliu-varikliu-programuotojai/dpf-ir-fap-suodziu-filtru-isjungimas
    - https://paslaugos.lt/automobiliu-tiuningas
    - https://paslaugos.lt/automobiliu-varikliu-programuotojai/automobiliu-kompiuteriu-programavimas
-   - taip pat ieškok WebSearch: „paslaugos.lt galios didinimas užklausa“, „paslaugos.lt kompiuterinė diagnostika Kaune“.
-2. WebSearch frazėmis: „ieškau chiptuning Kaunas“, „kas gali išprogramuoti EGR“, „DPF klaida kur sutvarkyti Kaune“, „AdBlue klaida sunkvežimis kur sutvarkyti“, „ECU klonavimas ieškau“, „IMMO off Kaunas“ ir panašiomis (skelbiu.lt „ieško“ skelbimai, forumai, autoplius forumas).
+   - taip pat ieškok WebSearch: „paslaugos.lt galios didinimas užklausa“, „paslaugos.lt kompiuterinė diagnostika Vilniuje“.
+2. WebSearch frazėmis: „ieškau chiptuning Vilnius“, „kas gali išprogramuoti EGR“, „DPF klaida kur sutvarkyti Vilniuje“, „AdBlue klaida sunkvežimis kur sutvarkyti“, „ECU klonavimas ieškau“, „IMMO off Vilnius“ ir panašiomis (skelbiu.lt „ieško“ skelbimai, forumai, autoplius forumas).
 3. Įmonės, kurios viešai ieško partnerio (pvz. servisas ieško programuotojo, įmonė ieško sunkvežimių diagnostikos).
 
 ## Kaip įrašyti
