@@ -13,7 +13,8 @@ Surask naujas, realias klientų užklausas (paskutinių ~14 dienų) Vilniuje ir 
    - https://paslaugos.lt/automobiliu-varikliu-programuotojai/automobiliu-kompiuteriu-programavimas
    - taip pat ieškok WebSearch: „paslaugos.lt galios didinimas užklausa“, „paslaugos.lt kompiuterinė diagnostika Vilniuje“.
 2. WebSearch frazėmis: „ieškau chiptuning Vilnius“, „kas gali išprogramuoti EGR“, „DPF klaida kur sutvarkyti Vilniuje“, „AdBlue klaida sunkvežimis kur sutvarkyti“, „ECU klonavimas ieškau“, „IMMO off Vilnius“ ir panašiomis (skelbiu.lt „ieško“ skelbimai, forumai, autoplius forumas).
-3. Įmonės, kurios viešai ieško partnerio (pvz. servisas ieško programuotojo, įmonė ieško sunkvežimių diagnostikos).
+3. **Klaidų kodai** – paimk 6–8 kodus / frazes iš /app/agents/klaidos.md (kiekvieną kartą vis kitus) ir ieškok WebSearch: „<kodas> klaida“, „<kodas> Vilnius“, „<frazė> forumas“. Ieškok, kur žmonės klausia, kaip sutvarkyti (forumai, skelbiu.lt, paslaugos.lt, autoplius forumas). Į --category įrašyk klaidos kodą.
+4. Įmonės, kurios viešai ieško partnerio (pvz. servisas ieško programuotojo, įmonė ieško sunkvežimių diagnostikos).
 
 ## Kaip įrašyti
 Pirma pasižiūrėk, kas jau įrašyta: `python3 /app/db.py known-urls` – tų nebekartok.
