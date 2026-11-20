@@ -14,7 +14,7 @@ TRIG = os.path.join(db.DATA, "triggers")
 AGENTS = {"maps": "B2B medžiotojas (Google Maps)", "zvalgas": "Žvalgas (karšti klientai)",
           "rasytojas": "Pasiūlymų rašytojas", "analitikas": "Analitikas"}
 STATUS_LT = {"naujas": "Naujas", "laiskas_paruostas": "Laiškas paruoštas", "issiustas": "Išsiųsta",
-             "atsake": "Atsakė", "klientas": "Klientas ✔", "atmestas": "Atmestas"}
+             "atsake": "Atsakė", "klientas": "Klientas ✔", "atmestas": "🗑 Šiukšliadėžė"}
 e = lambda s: html.escape(str(s if s is not None else ""))
 
 CSS = """
@@ -97,7 +97,10 @@ class H(BaseHTTPRequestHandler):
 
     def form(self):
         n = int(self.headers.get("Content-Length") or 0)
-        return {k: v[0] for k, v in urllib.parse.parse_qs(self.rfile.read(n).decode(), keep_blank_values=True).items()}
+        raw = urllib.parse.parse_qs(self.rfile.read(n).decode(), keep_blank_values=True)
+        d = {k: v[0] for k, v in raw.items()}
+        d["_ids"] = [i for i in raw.get("ids", []) if i.isdigit()]
+        return d
 
     def login_page(self, err=""):
         self.out(200, f"""<!doctype html><html lang="lt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -153,10 +156,11 @@ class H(BaseHTTPRequestHandler):
             h += f'<h2>Paskutinė ataskaita <span class="muted">{e(rep["created_at"])}</span></h2><div class="box"><pre>{e(rep["body"])}</pre></div>'
         return page("Apžvalga", h, "")
 
-    def lead_table(self, rows, actions=False):
+    def lead_table(self, rows, actions=False, trash=False):
         if not rows:
-            return '<div class="box muted">Kol kas tuščia. Agentai pildys automatiškai.</div>'
-        t = "<table><tr><th>Įmonė / žmogus</th><th>Ko reikia / kategorija</th><th>Kontaktai</th><th>Šaltinis</th><th>Statusas</th></tr>"
+            return '<div class="box muted">Tuščia.</div>'
+        chk = '<th style="width:30px"><input type="checkbox" style="width:auto" onclick="document.querySelectorAll(\'input[name=ids]\').forEach(x=>x.checked=this.checked)"></th>' if actions else ""
+        t = f"<table><tr>{chk}<th>Įmonė / žmogus</th><th>Ko reikia / kategorija</th><th>Kontaktai</th><th>Šaltinis</th><th>Statusas</th>{'<th></th>' if actions else ''}</tr>"
         for r in rows:
             contacts = " ".join(x for x in [
                 f'<a href="tel:{e(r["phone"])}">{e(r["phone"])}</a>' if r["phone"] else "",
@@ -167,24 +171,36 @@ class H(BaseHTTPRequestHandler):
             if actions:
                 opts = "".join(f'<option value="{k}" {"selected" if k == r["status"] else ""}>{v}</option>' for k, v in STATUS_LT.items())
                 st = f'<form method="post" action="/statusas"><input type="hidden" name="id" value="{r["id"]}"><select name="status" onchange="this.form.submit()">{opts}</select></form>'
-            t += (f'<tr><td><b>{e(r["name"])}</b><div class="muted">{e(r["city"])} {e(r["address"])}</div></td>'
+            box = f'<td><input type="checkbox" name="ids" value="{r["id"]}" form="bulk" style="width:auto"></td>' if actions else ""
+            act = ""
+            if actions:
+                a, lbl, cls = ("atkurti", "↩ Atkurti", "g") if trash else ("ismesti", "🗑", "r")
+                act = f'<td><form method="post" action="/siuksliadeze"><input type="hidden" name="ids" value="{r["id"]}"><button class="btn {cls}" name="a" value="{a}" title="{"Atkurti" if trash else "Į šiukšliadėžę"}">{lbl}</button></form></td>'
+            t += (f'<tr>{box}<td><b>{e(r["name"])}</b><div class="muted">{e(r["city"])} {e(r["address"])}</div></td>'
                   f'<td>{e(r["category"])}<div class="muted">{e(r["note"])}</div></td><td>{contacts}</td>'
-                  f'<td><span class="pill">{e(r["source"])}</span><div class="muted">{e(r["created_at"])}</div></td><td>{st}</td></tr>')
+                  f'<td><span class="pill">{e(r["source"])}</span><div class="muted">{e(r["created_at"])}</div></td><td>{st}</td>{act}</tr>')
         return t + "</table>"
 
     def leads(self, c, q):
         kind, status, s = q.get("tipas", ""), q.get("statusas", ""), q.get("q", "")
-        sql, a = "SELECT * FROM leads WHERE 1=1", []
+        trash = q.get("rodinys") == "siuksliadeze"
+        sql, a = "SELECT * FROM leads WHERE " + ("status='atmestas'" if trash else "status<>'atmestas'"), []
         if kind: sql += " AND kind=?"; a.append(kind)
         if status: sql += " AND status=?"; a.append(status)
         if s: sql += " AND (name LIKE ? OR category LIKE ? OR note LIKE ? OR city LIKE ?)"; a += [f"%{s}%"] * 4
         rows = c.execute(sql + " ORDER BY id DESC LIMIT 300", a).fetchall()
         opt = lambda d, cur: "".join(f'<option value="{k}" {"selected" if k == cur else ""}>{v}</option>' for k, v in d.items())
-        f = f"""<form class="row box" method="get"><select name="tipas" style="width:auto">{opt({"": "Visi tipai", "karstas": "🔥 Karšti", "b2b": "B2B"}, kind)}</select>
-<select name="statusas" style="width:auto">{opt(dict([("", "Visi statusai")] + list(STATUS_LT.items())), status)}</select>
+        ntrash = c.execute("SELECT COUNT(*) FROM leads WHERE status='atmestas'").fetchone()[0]
+        tabs = (f'<div class="row" style="margin-bottom:14px"><a class="btn {"g" if trash else ""}" href="/klientai">Aktyvūs</a>'
+                f'<a class="btn {"" if trash else "g"}" href="/klientai?rodinys=siuksliadeze">🗑 Šiukšliadėžė ({ntrash})</a></div>')
+        bulk = (f'<form id="bulk" method="post" action="/siuksliadeze" class="row" style="margin-bottom:10px">'
+                + ('<button class="btn g" name="a" value="atkurti">↩ Atkurti pažymėtus</button>' if trash else '<button class="btn r" name="a" value="ismesti">🗑 Pažymėtus į šiukšliadėžę</button>')
+                + '</form>')
+        f = f"""<form class="row box" method="get">{'<input type="hidden" name="rodinys" value="siuksliadeze">' if trash else ''}<select name="tipas" style="width:auto">{opt({"": "Visi tipai", "karstas": "🔥 Karšti", "b2b": "B2B"}, kind)}</select>
+<select name="statusas" style="width:auto">{opt(dict([("", "Visi statusai")] + [(k, v) for k, v in STATUS_LT.items() if k != "atmestas"]), status)}</select>
 <input name="q" value="{e(s)}" placeholder="Paieška..." style="max-width:260px"><button class="btn g">Filtruoti</button>
 <span class="muted">Rodoma: {len(rows)}</span></form>"""
-        return page("Klientai", "<h2>Klientai</h2>" + f + self.lead_table(rows, True), "klientai")
+        return page("Klientai", "<h2>Klientai</h2>" + tabs + f + bulk + self.lead_table(rows, True, trash), "klientai")
 
     def drafts(self, c, q):
         st = q.get("statusas", "laukia")
@@ -262,6 +278,10 @@ class H(BaseHTTPRequestHandler):
         c = db.conn()
         if p == "/statusas":
             c.execute("UPDATE leads SET status=?, updated_at=? WHERE id=?", (f.get("status"), db.now(), f.get("id"))); c.commit()
+            return self.redirect(self.headers.get("Referer") or "/klientai")
+        if p == "/siuksliadeze" and f["_ids"]:
+            new = "atmestas" if f.get("a") == "ismesti" else "naujas"
+            c.executemany("UPDATE leads SET status=?, updated_at=? WHERE id=?", [(new, db.now(), i) for i in f["_ids"]]); c.commit()
             return self.redirect(self.headers.get("Referer") or "/klientai")
         if p == "/paleisti" and f.get("agent") in AGENTS:
             os.makedirs(TRIG, exist_ok=True)
