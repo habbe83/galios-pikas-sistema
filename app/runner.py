@@ -177,10 +177,11 @@ def run_social(state):
     pick = [groups[(gi + k) % len(groups)] for k in range(min(2, len(groups)))] if groups else []
     state["social_g"] = gi + len(pick)
     save_state(state)
-    posts, log = [], []
+    posts, log, raw = [], [], []
     for q in queries:
         try:
             got = apify_items(token, "scraper_one~facebook-posts-search", {"query": q, "resultsCount": per, "searchType": "latest"}, per)
+            raw += got
             posts += [{"paieska": q, "irasas": _trim(x)} for x in got]
             log.append(f"„{q}“: {len(got)}")
         except Exception as ex:
@@ -188,10 +189,36 @@ def run_social(state):
     for g in pick:
         try:
             got = apify_items(token, "apify~facebook-groups-scraper", {"startUrls": [{"url": g}], "resultsLimit": per}, per)
+            raw += got
             posts += [{"grupe": g, "irasas": _trim(x)} for x in got]
             log.append(f"grupė {g}: {len(got)}")
         except Exception as ex:
             log.append(f"grupė {g}: klaida {ex}")
+    # Komentarai: populiariausių (daugiausiai komentuotų) įrašų komentarai – ten dažnai rašo „aš irgi turiu tą klaidą“
+    ncom = max(0, min(15, int(s.get("apify_comment_posts", 5) or 0)))
+    if ncom and raw:
+        def cnt(x):
+            for k in ("commentsCount", "commentCount", "comments_count", "comments"):
+                v = x.get(k)
+                if isinstance(v, (int, float)): return v
+                if isinstance(v, str) and v.isdigit(): return int(v)
+                if isinstance(v, list): return len(v)
+            return 0
+        def link(x):
+            for k in ("url", "postUrl", "facebookUrl", "link", "topLevelUrl"):
+                v = x.get(k)
+                if isinstance(v, str) and v.startswith("http"): return v
+            return ""
+        top = [link(x) for x in sorted(raw, key=cnt, reverse=True) if cnt(x) > 0 and link(x)]
+        top = list(dict.fromkeys(top))[:ncom]
+        if top:
+            try:
+                got = apify_items(token, "apify~facebook-comments-scraper",
+                                  {"startUrls": [{"url": u} for u in top], "resultsLimit": 20}, 20 * len(top))
+                posts += [{"komentaras": True, "irasas": _trim(x)} for x in got]
+                log.append(f"komentarai iš {len(top)} įrašų: {len(got)}")
+            except Exception as ex:
+                log.append(f"komentarai: klaida {ex}")
     work = "/tmp/work_socialai"
     os.makedirs(work, exist_ok=True)
     with open(f"{work}/posts.json", "w", encoding="utf-8") as f:

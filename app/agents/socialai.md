@@ -7,7 +7,9 @@ Faile /tmp/work_socialai/posts.json – šiandien surinkti vieši Facebook įra�
 
 Pirma: `python3 /app/db.py known-urls` – jau įrašytų nebekartok.
 
-Kiekvieną įrašą perskaityk ir nuspręsk, ar tai **žmogus, kuriam dabar reikia mūsų paslaugos**:
+Įrašai su `"komentaras": true` – tai komentarai po populiariais įrašais; juose lead'as yra KOMENTARO AUTORIUS (pvz. „aš irgi turiu tą klaidą, kas sutvarkė?“). Kaip --url naudok komentaro arba įrašo nuorodą, --source "facebook komentaras".
+
+Kiekvieną įrašą ir komentarą perskaityk ir nuspręsk, ar tai **žmogus, kuriam dabar reikia mūsų paslaugos**:
 - klausia, kur sutvarkyti klaidą / DPF / EGR / AdBlue / ECU / IMMO / užvedimo problemą, ieško chiptuning, diagnostikos ir pan.;
 - Lietuvoje (geriausia Vilniuje ar neaišku kur); praleisk aiškiai kitus miestus už ~50 km nuo Vilniaus;
 - ne senesnis nei ~30 dienų.

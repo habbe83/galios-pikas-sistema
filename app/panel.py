@@ -284,10 +284,11 @@ document.addEventListener('submit',async ev=>{const f=ev.target,m=f.dataset.ajax
 <input name="smtp_user" value="{e(s.get('smtp_user', 'info@galiospikas.lt'))}"><br><br>
 <input name="smtp_password" type="password" placeholder="Pašto slaptažodis (palik tuščią, jei nekeiti)"><br><br>
 <label class="muted">Maks. laiškų per dieną</label><input name="daily_limit" value="{e(s.get('daily_limit', 15))}" style="max-width:120px"></div>
-<div class="box"><b>Apify – Facebook įrašų paieška</b> {mark('apify_token')}<p class="muted">console.apify.com → Settings → API &amp; Integrations → nukopijuok „Personal API token“. Nemokamas planas: 5 $/mėn. Kaina ~0,005 $ už įrašą (15 įrašų × 3 paieškos ≈ 0,23 $/d.). Rekomenduojama Apify'e nustatyti mėnesio limitą: console.apify.com/billing#/limits</p>
+<div class="box"><b>Apify – Facebook įrašų paieška</b> {mark('apify_token')}<p class="muted">console.apify.com → Settings → API &amp; Integrations → nukopijuok „Personal API token“. Nemokamas planas: 5 $/mėn. Kaina ~0,005 $ už įrašą, ~0,0025 $ už komentarą (3 paieškos × 15 įrašų + 5 įrašų komentarai ≈ 0,45 $/d.). Rekomenduojama Apify'e nustatyti mėnesio limitą: console.apify.com/billing#/limits</p>
 <input name="apify_token" type="password" placeholder="Apify token (palik tuščią, jei nekeiti)"><br><br>
 <div class="row"><label class="muted">Įrašų per paiešką</label><input name="apify_posts" value="{e(s.get('apify_posts', 15))}" style="max-width:90px">
-<label class="muted">Paieškų per dieną</label><input name="apify_queries" value="{e(s.get('apify_queries', 3))}" style="max-width:90px"></div><br>
+<label class="muted">Paieškų per dieną</label><input name="apify_queries" value="{e(s.get('apify_queries', 3))}" style="max-width:90px">
+<label class="muted">Komentarų: kiek populiariausių įrašų tikrinti (0 = ne)</label><input name="apify_comment_posts" value="{e(s.get('apify_comment_posts', 5))}" style="max-width:90px"></div><br>
 <label class="muted">Viešos Facebook grupės (po vieną nuorodą eilutėje, pvz. BMW / VAG / auto problemų grupės)</label>
 <textarea name="fb_groups" style="min-height:90px">{e(s.get('fb_groups', ''))}</textarea></div>
 <button class="btn">Išsaugoti</button></form>
@@ -368,7 +369,7 @@ document.addEventListener('submit',async ev=>{const f=ev.target,m=f.dataset.ajax
                     s[k] = f[k].strip()
             s["smtp_user"] = f.get("smtp_user", "info@galiospikas.lt").strip()
             s["fb_groups"] = f.get("fb_groups", "").strip()
-            for k, d, lo, hi in (("apify_posts", 15, 5, 100), ("apify_queries", 3, 1, 8)):
+            for k, d, lo, hi in (("apify_posts", 15, 5, 100), ("apify_queries", 3, 1, 8), ("apify_comment_posts", 5, 0, 15)):
                 try:
                     s[k] = max(lo, min(hi, int(f.get(k) or d)))
                 except ValueError:
