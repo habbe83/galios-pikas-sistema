@@ -16,6 +16,23 @@ from datetime import datetime, timezone
 DATA = os.environ.get("GP_DATA", "/data")
 DB_PATH = os.path.join(DATA, "galiospikas.db")
 SETTINGS_PATH = os.path.join(DATA, "settings.json")
+LESSONS_PATH = os.path.join(DATA, "pamokos", "pamokos.md")
+EXCLUDE_PATH = os.path.join(DATA, "pamokos", "netinka.txt")
+
+
+def read_text(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return ""
+
+
+def write_text(path, txt):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path + ".tmp", "w", encoding="utf-8") as f:
+        f.write(txt)
+    os.replace(path + ".tmp", path)
 
 ENRICH_COLS = ["company_code", "employees", "vehicles", "revenue", "director", "activity"]
 LEAD_STATUSES = ["naujas", "laiskas_paruostas", "issiustas", "atsake", "klientas", "atmestas"]
@@ -57,6 +74,8 @@ def conn():
     c.row_factory = sqlite3.Row
     c.execute("PRAGMA journal_mode=WAL")
     c.executescript(SCHEMA)
+    if "orig_body" not in {r[1] for r in c.execute("PRAGMA table_info(drafts)")}:
+        c.execute("ALTER TABLE drafts ADD COLUMN orig_body TEXT")
     have = {r[1] for r in c.execute("PRAGMA table_info(leads)")}
     for col in ENRICH_COLS + ["enriched_at"]:
         if col not in have:
@@ -147,6 +166,9 @@ def main():
     a = sp.add_parser("set-status"); a.add_argument("id", type=int); a.add_argument("status", choices=LEAD_STATUSES)
     a = sp.add_parser("add-report"); a.add_argument("--title", required=True); a.add_argument("--body-file", required=True)
     sp.add_parser("stats")
+    sp.add_parser("feedback")
+    a = sp.add_parser("save-lessons"); a.add_argument("--file", required=True)
+    a = sp.add_parser("save-exclude"); a.add_argument("--file", required=True)
     sp.add_parser("known-urls")
     args = p.parse_args()
     c = conn()
@@ -173,7 +195,7 @@ def main():
             sys.exit("Nėra tokio lead")
         if c.execute("SELECT 1 FROM drafts WHERE lead_id=? AND status IN ('laukia','issiusta')", (args.lead,)).fetchone():
             print("JAU YRA laiškas šiam klientui (praleista)"); return
-        c.execute("INSERT INTO drafts(lead_id,subject,body,status,created_at) VALUES(?,?,?,'laukia',?)", (args.lead, args.subject, body, now()))
+        c.execute("INSERT INTO drafts(lead_id,subject,body,orig_body,status,created_at) VALUES(?,?,?,?,'laukia',?)", (args.lead, args.subject, body, body, now()))
         c.execute("UPDATE leads SET status='laiskas_paruostas', updated_at=? WHERE id=?", (now(), args.lead))
         c.commit(); print("OK")
     elif args.cmd == "enrich":
@@ -192,6 +214,23 @@ def main():
     elif args.cmd == "known-urls":
         for r in c.execute("SELECT url FROM leads WHERE kind='karstas' AND IFNULL(url,'')<>'' ORDER BY id DESC LIMIT 300"):
             print(r["url"])
+    elif args.cmd == "feedback":
+        q = lambda sql: [dict(r) for r in c.execute(sql)]
+        out = {
+            "ismesti_klientai_karolio": q("SELECT name,category,source,city,note,activity FROM leads WHERE status='atmestas' AND updated_at<>created_at ORDER BY updated_at DESC LIMIT 80"),
+            "geri_klientai_atsake_ar_klientai": q("SELECT name,category,source,city,note,activity,vehicles,employees FROM leads WHERE status IN ('atsake','klientas') ORDER BY updated_at DESC LIMIT 50"),
+            "atmesti_laiskai": q("SELECT d.subject,d.body,l.category FROM drafts d LEFT JOIN leads l ON l.id=d.lead_id WHERE d.status='atmesta' ORDER BY d.id DESC LIMIT 15"),
+            "karolio_pataisyti_laiskai": q("SELECT d.orig_body AS buvo, d.body AS tapo, l.category FROM drafts d LEFT JOIN leads l ON l.id=d.lead_id WHERE d.status='issiusta' AND d.orig_body IS NOT NULL AND d.orig_body<>d.body ORDER BY d.id DESC LIMIT 15"),
+            "issiusti_laiskai_ir_atsakymai": q("SELECT l.category, l.status, d.subject FROM drafts d LEFT JOIN leads l ON l.id=d.lead_id WHERE d.status='issiusta' ORDER BY d.id DESC LIMIT 60"),
+            "dabartines_pamokos": read_text(LESSONS_PATH),
+            "dabartiniai_netinkami_zodziai": read_text(EXCLUDE_PATH),
+        }
+        print(json.dumps(out, ensure_ascii=False, indent=1))
+    elif args.cmd == "save-lessons":
+        write_text(LESSONS_PATH, _read(args.file).strip() + "\n"); print("OK")
+    elif args.cmd == "save-exclude":
+        words = sorted({w.strip().lower() for w in _read(args.file).splitlines() if 2 < len(w.strip()) < 40})
+        write_text(EXCLUDE_PATH, "\n".join(words) + "\n"); print(f"OK ({len(words)} žodžių)")
     elif args.cmd == "stats":
         out = {
             "leads_viso": c.execute("SELECT COUNT(*) FROM leads").fetchone()[0],

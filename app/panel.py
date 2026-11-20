@@ -12,7 +12,7 @@ PASSWORD = os.environ.get("PANEL_PASSWORD", "")
 SECRET = (os.environ.get("PANEL_SECRET") or PASSWORD or "x").encode()
 TRIG = os.path.join(db.DATA, "triggers")
 AGENTS = {"maps": "B2B medžiotojas (Google Maps)", "zvalgas": "Žvalgas (karšti klientai)",
-          "tikrintojas": "Tikrintojas (rekvizitai.lt)", "socialai": "Socialinių tinklų žvalgas (Facebook)", "rasytojas": "Pasiūlymų rašytojas", "analitikas": "Analitikas"}
+          "tikrintojas": "Tikrintojas (rekvizitai.lt)", "socialai": "Socialinių tinklų žvalgas (Facebook)", "rasytojas": "Pasiūlymų rašytojas", "analitikas": "Analitikas", "mokytojas": "Mokytojas (mokosi iš rezultatų)"}
 STATUS_LT = {"naujas": "Naujas", "laiskas_paruostas": "Laiškas paruoštas", "issiustas": "Išsiųsta",
              "atsake": "Atsakė", "klientas": "Klientas ✔", "atmestas": "🗑 Šiukšliadėžė"}
 e = lambda s: html.escape(str(s if s is not None else ""))
@@ -37,7 +37,7 @@ h2{margin:6px 0 14px}form.inline{display:inline}
 def page(title, body, active=""):
     nav = "".join(f'<a class="{"on" if active == k else ""}" href="/{k}">{v}</a>' for k, v in
                   [("", "Apžvalga"), ("klientai", "Klientai"), ("laiskai", "Laiškai"), ("agentai", "Agentai"),
-                   ("ataskaitos", "Ataskaitos"), ("nustatymai", "Nustatymai")])
+                   ("ataskaitos", "Ataskaitos"), ("pamokos", "Pamokos"), ("nustatymai", "Nustatymai")])
     return f"""<!doctype html><html lang="lt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(title)} · Galios Pikas</title><style>{CSS}</style></head><body><header><b>⚡ Galios Pikas</b>{nav}
 <span style="flex:1"></span><a href="/atsijungti">Atsijungti</a></header><main>{body}</main></body></html>"""
@@ -133,6 +133,8 @@ class H(BaseHTTPRequestHandler):
             return self.out(200, self.reports(c))
         if p == "/nustatymai":
             return self.out(200, self.settings(q))
+        if p == "/pamokos":
+            return self.out(200, self.lessons(q))
         self.out(404, page("Nerasta", "<h2>Nerasta</h2>"))
 
     def home(self, c):
@@ -240,7 +242,7 @@ document.addEventListener('submit',async ev=>{const f=ev.target,m=f.dataset.ajax
         h = "<h2>Agentai</h2><div class='box'><div class='muted' style='margin-bottom:10px'>Agentai dirba pagal grafiką automatiškai. Gali paleisti ir rankiniu būdu – paspaudus atsiranda „eilėje“, nes AI agentai dirba po vieną (Google Maps – lygiagrečiai). Puslapis atsinaujina pats.</div><div class='row'>"
         for k, v in AGENTS.items():
             h += f'<form class="inline" method="post" action="/paleisti"><input type="hidden" name="agent" value="{k}"><button class="btn g">▶ {e(v)}</button></form>'
-        h += """</div><div class="muted" style="margin-top:10px">Grafikas: B2B medžiotojas – kasdien 03:10 · Žvalgas – kasdien 07:40 ir 17:40 · Tikrintojas – kasdien 05:30 · Socialinių tinklų žvalgas – kasdien 12:10 · Rašytojas – darbo dienomis 08:30 · Analitikas – pirmadieniais 07:15</div></div>"""
+        h += """</div><div class="muted" style="margin-top:10px">Grafikas: B2B medžiotojas – kasdien 03:10 · Žvalgas – kasdien 07:40 ir 17:40 · Tikrintojas – kasdien 05:30 · Socialinių tinklų žvalgas – kasdien 12:10 · Rašytojas – darbo dienomis 08:30 · Analitikas – pirmadieniais 07:15 · Mokytojas – kasdien 22:30</div></div>"""
         rows = c.execute("SELECT * FROM runs ORDER BY id DESC LIMIT 60").fetchall()
         h += "<table><tr><th>Agentas</th><th>Pradžia</th><th>Pabaiga</th><th>Būsena</th><th>Rezultatas</th></tr>"
         for r in rows:
@@ -255,6 +257,17 @@ document.addEventListener('submit',async ev=>{const f=ev.target,m=f.dataset.ajax
         rows = c.execute("SELECT * FROM reports ORDER BY id DESC LIMIT 30").fetchall()
         h = "<h2>Ataskaitos</h2>" + ("".join(f'<div class="box"><b>{e(r["title"])}</b> <span class="muted">{e(r["created_at"])}</span><pre style="margin-top:10px">{e(r["body"])}</pre></div>' for r in rows) or '<div class="box muted">Pirmoji ataskaita bus pirmadienį.</div>')
         return page("Ataskaitos", h, "ataskaitos")
+
+    def lessons(self, q):
+        msg = '<div class="box ok">Išsaugota. Agentai laikysis nuo kito paleidimo.</div>' if q.get("ok") else ""
+        h = f"""<h2>Pamokos</h2>{msg}<div class="box muted">Mokytojas kasvakar 22:30 peržiūri tavo veiksmus (🗑 išmesti klientai, „Atsakė/Klientas“, pataisyti ir atmesti laiškai) ir čia surašo taisykles, kurių laikosi visi agentai. Gali taisyti ir pats – tavo įrašai turi pirmenybę.</div>
+<form method="post" action="/pamokos"><div class="box"><b>Pamokos visiems agentams</b><br><br>
+<textarea name="lessons" style="min-height:300px">{e(db.read_text(db.LESSONS_PATH))}</textarea></div>
+<div class="box"><b>Netinkami žodžiai</b> <span class="muted">(įmonės, kurių pavadinime ar kategorijoje yra šie žodžiai, nebepridedamos; po vieną eilutėje)</span><br><br>
+<textarea name="exclude" style="min-height:140px">{e(db.read_text(db.EXCLUDE_PATH))}</textarea></div>
+<button class="btn">Išsaugoti</button></form>
+<form method="post" action="/paleisti" style="margin-top:12px"><input type="hidden" name="agent" value="mokytojas"><button class="btn g">▶ Paleisti Mokytoją dabar</button></form>"""
+        return page("Pamokos", h, "pamokos")
 
     def settings(self, q):
         s = db.load_settings()
@@ -301,6 +314,11 @@ document.addEventListener('submit',async ev=>{const f=ev.target,m=f.dataset.ajax
         if p == "/statusas":
             c.execute("UPDATE leads SET status=?, updated_at=? WHERE id=?", (f.get("status"), db.now(), f.get("id"))); c.commit()
             return self.redirect(self.headers.get("Referer") or "/klientai")
+        if p == "/pamokos":
+            db.write_text(db.LESSONS_PATH, f.get("lessons", "").strip() + "\n")
+            words = sorted({w.strip().lower() for w in f.get("exclude", "").splitlines() if 2 < len(w.strip()) < 40})
+            db.write_text(db.EXCLUDE_PATH, "\n".join(words) + ("\n" if words else ""))
+            return self.redirect("/pamokos?ok=1")
         if p == "/siuksliadeze" and f["_ids"]:
             new = "atmestas" if f.get("a") == "ismesti" else "naujas"
             c.executemany("UPDATE leads SET status=?, updated_at=? WHERE id=?", [(new, db.now(), i) for i in f["_ids"]]); c.commit()

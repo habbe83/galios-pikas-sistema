@@ -25,6 +25,7 @@ SCHEDULE = [
     ("socialai", range(7), 12, 10),
     ("rasytojas", range(5), 8, 30),
     ("analitikas", [0], 7, 15),
+    ("mokytojas", range(7), 22, 30),
 ]
 
 MAPS_BATCHES = [
@@ -57,7 +58,8 @@ EXCLUDE = ("detal", "dalys", "dalių", "parduotuv", "padang", "ratų", "ratai", 
 
 def is_bad(name, cat, addr):
     low = f"{name} {cat}".lower()
-    return any(w in low for w in EXCLUDE) or ("vilni" not in (addr or "").lower())
+    learned = [w for w in db.read_text(db.EXCLUDE_PATH).splitlines() if w.strip()]
+    return any(w in low for w in EXCLUDE) or any(w.strip() in low for w in learned) or ("vilni" not in (addr or "").lower())
 
 
 def cleanup():
@@ -87,6 +89,7 @@ LLM_AGENTS = {
     "rasytojas": "Tu esi PASIŪLYMŲ RAŠYTOJAS. Atlik užduotį pagal /app/agents/rasytojas.md. Dirbk savarankiškai iki galo.",
     "socialai": "Tu esi SOCIALINIŲ TINKLŲ ŽVALGAS. Atlik užduotį pagal /app/agents/socialai.md. Dirbk savarankiškai iki galo.",
     "tikrintojas": "Tu esi TIKRINTOJAS. Atlik užduotį pagal /app/agents/tikrintojas.md. Dirbk savarankiškai iki galo.",
+    "mokytojas": "Tu esi MOKYTOJAS. Atlik užduotį pagal /app/agents/mokytojas.md.",
     "analitikas": "Tu esi ANALITIKAS. Atlik užduotį pagal /app/agents/analitikas.md.",
 }
 
@@ -110,9 +113,16 @@ def run_claude(agent):
     env.pop("ANTHROPIC_API_KEY", None)
     work = f"/tmp/work_{agent}"
     os.makedirs(work, exist_ok=True)
-    cmd = ["claude", "-p", LLM_AGENTS[agent], "--add-dir", "/app", "--max-turns", "120",
-           "--allowedTools", "WebSearch", "WebFetch", "Read", "Write", "Edit", "Glob", "Grep",
-           "Bash(python3 /app/db.py:*)", "Bash(python3 /app/db.py *)"]
+    os.makedirs(os.path.dirname(db.LESSONS_PATH), exist_ok=True)
+    prompt = LLM_AGENTS[agent] + f" Prieš pradėdamas perskaityk {db.LESSONS_PATH} (jei yra) – tai pamokos iš ankstesnių rezultatų ir Karolio veiksmų; jų būtinai laikykis."
+    lessons_dir = os.path.dirname(db.LESSONS_PATH)
+    # Agentai mato tik savo instrukcijas, pamokas ir /tmp darbo failus – ne nustatymus su raktais.
+    cmd = ["claude", "-p", prompt, "--add-dir", "/app", "--add-dir", lessons_dir, "--max-turns", "120",
+           "--allowedTools", "WebSearch", "WebFetch",
+           "Read(//app/**)", f"Read(/{lessons_dir}/**)", "Read(//tmp/**)", "Glob(//app/**)", "Grep(//app/**)",
+           "Write(//tmp/**)", "Edit(//tmp/**)",
+           "Bash(python3 /app/db.py:*)", "Bash(python3 /app/db.py *)",
+           "--disallowedTools", f"Read(/{db.DATA}/*.json)", f"Read(/{db.DATA}/*.db*)"]
     try:
         p = subprocess.run(cmd, cwd=work, env=env, capture_output=True, text=True, timeout=45 * 60)
         out = (p.stdout or "") + ("\n" + p.stderr if p.returncode else "")
