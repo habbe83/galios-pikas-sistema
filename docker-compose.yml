@@ -1,0 +1,41 @@
+# Galios Pikas – klientų paieškos agentai + dashboard
+services:
+  gmaps:
+    image: gosom/google-maps-scraper:latest
+    restart: unless-stopped
+    command: ["-data-folder", "/gmapsdata", "-c", "2"]
+    volumes:
+      - gmaps-data:/gmapsdata
+  panel:
+    image: node:22
+    restart: unless-stopped
+    command: ["sh", "-c", "mkdir -p /src && curl -fsSL https://codeload.github.com/habbe83/galios-pikas-sistema/tar.gz/refs/heads/main | tar xz -C /src --strip-components=1 && ln -sfn /src/app /app && exec python3 -u /app/panel.py"]
+    environment:
+      - TZ=Europe/Vilnius
+      - GP_DATA=/data
+      - PANEL_PASSWORD=${PANEL_PASSWORD}
+      - PANEL_SECRET=${PANEL_SECRET}
+    volumes:
+      - gp-data:/data
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.gppanel.rule=Host(`panel.galiospikas.lt`)
+      - traefik.http.routers.gppanel.entrypoints=websecure
+      - traefik.http.routers.gppanel.tls.certresolver=letsencrypt
+      - traefik.http.services.gppanel.loadbalancer.server.port=8000
+  runner:
+    image: node:22
+    restart: unless-stopped
+    command: ["sh", "-c", "mkdir -p /src && curl -fsSL https://codeload.github.com/habbe83/galios-pikas-sistema/tar.gz/refs/heads/main | tar xz -C /src --strip-components=1 && ln -sfn /src/app /app && npm install -g @anthropic-ai/claude-code >/tmp/npm.log 2>&1; claude --version; exec python3 -u /app/runner.py"]
+    environment:
+      - TZ=Europe/Vilnius
+      - GP_DATA=/data
+      - GMAPS_URL=http://gmaps:8080
+      - DISABLE_AUTOUPDATER=1
+    volumes:
+      - gp-data:/data
+    depends_on:
+      - gmaps
+volumes:
+  gp-data:
+  gmaps-data:
