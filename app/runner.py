@@ -37,6 +37,7 @@ MAPS_BATCHES = [
     ["dyzelinių variklių remontas Vilnius", "automobilių elektrikas Vilnius", "pavarų dėžių remontas Vilnius"],
     ["sunkvežimių servisas Vilnius", "transporto įmonė Vilnius", "krovinių pervežimas Vilnius"],
     ["motociklų servisas Vilnius", "mikroautobusų remontas Vilnius", "automobilių diagnostika Vilnius"],
+    ["naudotų automobilių aikštelė Vilnius", "naudoti automobiliai Vilnius"],
     ["autoservisas Vilniaus rajonas", "autoservisas Nemenčinė", "autoservisas Pabradė"],
 ]
 
@@ -48,7 +49,7 @@ EXCLUDE = ("detal", "dalys", "dalių", "parduotuv", "padang", "ratų", "ratai", 
            # oficialūs atstovai, automobilių pardavėjai, dideli tinklai (markių pavadinimų NEFILTRUOJAM –
            # mažas „BMW servisas“ yra geras klientas)
            "atstov", "oficial", "dealer", "naujų automobilių", "naujų auto", "autosalon", "salonas",
-           "prekyba", "pardav", "aikštel", "automobilių turgus", "car sales", "used cars", "auto plius",
+           "naujų automobilių pardav", "new cars",
            "moller", "möller", "krasta", "inchcape", "silberauto", "vaitėnas", "autobrava", "tokvila",
            "unimodus", "rolinga", "amber auto", "lancasterauto", "autokurtas", "renault retail")
 
@@ -66,6 +67,17 @@ def cleanup():
             c.execute("UPDATE leads SET status='atmestas' WHERE id=?", (r["id"],))
             n += 1
     c.commit()
+    # vienkartinis: grąžinti automatiškai išmestus, kurie pagal naujas taisykles tinka
+    # (updated_at == created_at reiškia, kad ranka nebuvo liesti)
+    st = load_state()
+    if not st.get("restore_v2"):
+        back = 0
+        for r in c.execute("SELECT id,name,category,address FROM leads WHERE kind='b2b' AND source='google_maps' AND status='atmestas' AND updated_at=created_at").fetchall():
+            if not is_bad(r["name"], r["category"], r["address"]):
+                c.execute("UPDATE leads SET status='naujas' WHERE id=?", (r["id"],)); back += 1
+        c.commit()
+        st["restore_v2"] = True; save_state(st)
+        print(f"Grąžinta tinkamų: {back}", flush=True)
     print(f"Išvalyta netinkamų: {n}", flush=True)
 
 
