@@ -170,12 +170,12 @@ class H(BaseHTTPRequestHandler):
             st = e(STATUS_LT.get(r["status"], r["status"]))
             if actions:
                 opts = "".join(f'<option value="{k}" {"selected" if k == r["status"] else ""}>{v}</option>' for k, v in STATUS_LT.items())
-                st = f'<form method="post" action="/statusas"><input type="hidden" name="id" value="{r["id"]}"><select name="status" onchange="this.form.submit()">{opts}</select></form>'
+                st = f'<form method="post" action="/statusas"><input type="hidden" name="id" value="{r["id"]}"><select name="status" onchange="ajaxPost(this.form)">{opts}</select></form>'
             box = f'<td><input type="checkbox" name="ids" value="{r["id"]}" form="bulk" style="width:auto"></td>' if actions else ""
             act = ""
             if actions:
                 a, lbl, cls = ("atkurti", "↩ Atkurti", "g") if trash else ("ismesti", "🗑", "r")
-                act = f'<td><form method="post" action="/siuksliadeze"><input type="hidden" name="ids" value="{r["id"]}"><button class="btn {cls}" name="a" value="{a}" title="{"Atkurti" if trash else "Į šiukšliadėžę"}">{lbl}</button></form></td>'
+                act = f'<td><form method="post" action="/siuksliadeze" data-ajax="row"><input type="hidden" name="ids" value="{r["id"]}"><button class="btn {cls}" name="a" value="{a}" title="{"Atkurti" if trash else "Į šiukšliadėžę"}">{lbl}</button></form></td>'
             t += (f'<tr>{box}<td><b>{e(r["name"])}</b><div class="muted">{e(r["city"])} {e(r["address"])}</div></td>'
                   f'<td>{e(r["category"])}<div class="muted">{e(r["note"])}</div></td><td>{contacts}</td>'
                   f'<td><span class="pill">{e(r["source"])}</span><div class="muted">{e(r["created_at"])}</div></td><td>{st}</td>{act}</tr>')
@@ -193,14 +193,20 @@ class H(BaseHTTPRequestHandler):
         ntrash = c.execute("SELECT COUNT(*) FROM leads WHERE status='atmestas'").fetchone()[0]
         tabs = (f'<div class="row" style="margin-bottom:14px"><a class="btn {"g" if trash else ""}" href="/klientai">Aktyvūs</a>'
                 f'<a class="btn {"" if trash else "g"}" href="/klientai?rodinys=siuksliadeze">🗑 Šiukšliadėžė ({ntrash})</a></div>')
-        bulk = (f'<form id="bulk" method="post" action="/siuksliadeze" class="row" style="margin-bottom:10px">'
+        bulk = (f'<form id="bulk" method="post" action="/siuksliadeze" data-ajax="bulk" class="row" style="margin-bottom:10px">'
                 + ('<button class="btn g" name="a" value="atkurti">↩ Atkurti pažymėtus</button>' if trash else '<button class="btn r" name="a" value="ismesti">🗑 Pažymėtus į šiukšliadėžę</button>')
                 + '</form>')
         f = f"""<form class="row box" method="get">{'<input type="hidden" name="rodinys" value="siuksliadeze">' if trash else ''}<select name="tipas" style="width:auto">{opt({"": "Visi tipai", "karstas": "🔥 Karšti", "b2b": "B2B"}, kind)}</select>
 <select name="statusas" style="width:auto">{opt(dict([("", "Visi statusai")] + [(k, v) for k, v in STATUS_LT.items() if k != "atmestas"]), status)}</select>
 <input name="q" value="{e(s)}" placeholder="Paieška..." style="max-width:260px"><button class="btn g">Filtruoti</button>
 <span class="muted">Rodoma: {len(rows)}</span></form>"""
-        return page("Klientai", "<h2>Klientai</h2>" + tabs + f + bulk + self.lead_table(rows, True, trash), "klientai")
+        js = """<script>
+function ajaxPost(f, sub){const fd=new FormData(f, sub);return fetch(f.action,{method:'POST',body:new URLSearchParams(fd),redirect:'manual',credentials:'same-origin'});}
+document.addEventListener('submit',async ev=>{const f=ev.target,m=f.dataset.ajax;if(!m)return;ev.preventDefault();
+ const rows=m==='row'?[f.closest('tr')]:[...document.querySelectorAll('input[name=ids]:checked')].map(x=>x.closest('tr')).filter(Boolean);
+ if(!rows.length)return;await ajaxPost(f,ev.submitter);rows.forEach(r=>r.remove());});
+</script>"""
+        return page("Klientai", "<h2>Klientai</h2>" + tabs + f + bulk + self.lead_table(rows, True, trash) + js, "klientai")
 
     def drafts(self, c, q):
         st = q.get("statusas", "laukia")
