@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Galios Pikas dashboard (be išorinių bibliotekų)."""
-import hashlib, hmac, html, os, smtplib, ssl, sys, time, urllib.parse
+import hashlib, hmac, html, os, random, smtplib, ssl, sys, threading, time, urllib.parse
 from email.message import EmailMessage
 from email.utils import formataddr, make_msgid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -62,6 +62,49 @@ def send_mail(settings, to, subject, body):
     with smtplib.SMTP_SSL("smtp.hostinger.com", 465, context=ssl.create_default_context(), timeout=30) as s:
         s.login(sender, pw)
         s.send_message(msg)
+
+
+def send_draft(c, did, subject=None, body=None):
+    """Išsiunčia vieną juodraštį. Grąžina klaidos tekstą arba None."""
+    d = c.execute("SELECT d.*, l.email FROM drafts d LEFT JOIN leads l ON l.id=d.lead_id WHERE d.id=?", (did,)).fetchone()
+    if not d:
+        return "Laiškas nerastas."
+    s = db.load_settings()
+    sent_today = c.execute("SELECT COUNT(*) FROM drafts WHERE status='issiusta' AND sent_at >= date('now')").fetchone()[0]
+    try:
+        if not d["email"]:
+            raise RuntimeError("Klientas neturi el. pašto.")
+        if sent_today >= int(s.get("daily_limit", 15)):
+            raise RuntimeError("Pasiektas dienos laiškų limitas.")
+        send_mail(s, d["email"], subject or d["subject"], body or d["body"])
+        c.execute("UPDATE drafts SET status='issiusta', sent_at=?, error=NULL WHERE id=?", (db.now(), did))
+        c.execute("UPDATE leads SET status='issiustas', updated_at=? WHERE id=?", (db.now(), d["lead_id"]))
+        err = None
+    except Exception as ex:
+        err = str(ex)[:500] or "nežinoma klaida"
+        c.execute("UPDATE drafts SET status='klaida', error=? WHERE id=?", (err, did))
+    c.commit()
+    return err
+
+
+def queue_worker():
+    """Siunčia eilėje esančius laiškus po vieną su pertrauka (apsauga nuo blokavimo ir spam)."""
+    while True:
+        try:
+            c = db.conn()
+            r = c.execute("SELECT id FROM drafts WHERE status='eileje' ORDER BY id LIMIT 1").fetchone()
+            if not r:
+                c.close(); time.sleep(10); continue
+            err = send_draft(c, r["id"])
+            if err and ("535" in err or "blacklist" in err.lower() or "limitas" in err):
+                # serveris atmetė prisijungimą arba pasiektas limitas – sustabdom visą eilę
+                c.execute("UPDATE drafts SET status='klaida', error=? WHERE status='eileje'",
+                          ("Eilė sustabdyta: " + err[:300],)); c.commit()
+            c.close()
+            if not err:
+                time.sleep(random.randint(60, 120))
+        except Exception as ex:
+            print("queue_worker:", ex, flush=True); time.sleep(30)
 
 
 class H(BaseHTTPRequestHandler):
@@ -222,13 +265,21 @@ document.addEventListener('submit',async ev=>{const f=ev.target,m=f.dataset.ajax
         st = q.get("statusas", "laukia")
         rows = c.execute("SELECT d.*, l.name, l.email, l.website, l.category FROM drafts d LEFT JOIN leads l ON l.id=d.lead_id WHERE d.status=? ORDER BY d.id DESC LIMIT 100", (st,)).fetchall()
         tabs = " ".join(f'<a class="btn {"" if k == st else "g"}" href="/laiskai?statusas={k}">{v}</a>' for k, v in
-                        [("laukia", "Laukia patvirtinimo"), ("issiusta", "Išsiųsti"), ("atmesta", "Atmesti"), ("klaida", "Klaidos")])
+                        [("laukia", "Laukia patvirtinimo"), ("eileje", "Siunčiama"), ("issiusta", "Išsiųsti"), ("atmesta", "Atmesti"), ("klaida", "Klaidos")])
         h = f'<h2>Laiškai</h2><div class="row" style="margin-bottom:16px">{tabs}</div>'
+        if st == "eileje" and rows:
+            h += '<div class="box muted">Laiškai siunčiami po vieną kas 1–2 min. Sustabdyti – „Atšaukti eilę“.</div><form method="post" action="/laiskai-eile" style="margin-bottom:16px"><button class="btn r" name="a" value="atsaukti">Atšaukti eilę</button></form>'
+        if st in ("laukia", "klaida") and rows:
+            h += f'''<form id="bulk" method="post" action="/laiskai-eile"><input type="hidden" name="back" value="{e(st)}"><div class="box row">
+<label><input type="checkbox" style="width:auto" onclick="document.querySelectorAll('.sel').forEach(x=>x.checked=this.checked)"> Pažymėti visus</label>
+<button class="btn" name="a" value="siusti">Siųsti pažymėtus</button>
+<span class="muted">Siunčiama po vieną kas 1–2 min. Prieš siųsdamas išsaugok pataisytus laiškus.</span></div></form>'''
         if not rows:
             h += '<div class="box muted">Nėra laiškų.</div>'
         for r in rows:
             dis = "" if st in ("laukia", "klaida") else "disabled"
-            h += f"""<div class="box"><div class="row"><b>{e(r['name'])}</b><span class="pill">{e(r['category'])}</span>
+            chk = f'<input type="checkbox" class="sel" name="ids" value="{r["id"]}" form="bulk" style="width:auto">' if not dis else ''
+            h += f"""<div class="box"><div class="row">{chk}<b>{e(r['name'])}</b><span class="pill">{e(r['category'])}</span>
 <span class="muted">{e(r['email']) or '<span class=bad>nėra el. pašto</span>'} · {e(r['created_at'])}</span>
 {f'<a href="{e(r["website"])}" target="_blank">svetainė</a>' if r['website'] else ''}</div>
 {f'<div class="bad">{e(r["error"])}</div>' if r['error'] else ''}
@@ -339,20 +390,14 @@ document.addEventListener('submit',async ev=>{const f=ev.target,m=f.dataset.ajax
                 c.execute("UPDATE drafts SET status='atmesta' WHERE id=?", (did,))
                 c.execute("UPDATE leads SET status='atmestas', updated_at=? WHERE id=?", (db.now(), d["lead_id"])); c.commit()
             elif a == "siusti":
-                s = db.load_settings()
-                sent_today = c.execute("SELECT COUNT(*) FROM drafts WHERE status='issiusta' AND sent_at >= date('now')").fetchone()[0]
-                try:
-                    if not d["email"]:
-                        raise RuntimeError("Klientas neturi el. pašto.")
-                    if sent_today >= int(s.get("daily_limit", 15)):
-                        raise RuntimeError("Pasiektas dienos laiškų limitas.")
-                    send_mail(s, d["email"], f.get("subject"), f.get("body"))
-                    c.execute("UPDATE drafts SET status='issiusta', sent_at=?, error=NULL WHERE id=?", (db.now(), did))
-                    c.execute("UPDATE leads SET status='issiustas', updated_at=? WHERE id=?", (db.now(), d["lead_id"]))
-                except Exception as ex:
-                    c.execute("UPDATE drafts SET status='klaida', error=? WHERE id=?", (str(ex)[:500], did))
-                c.commit()
-            return self.redirect("/laiskai")
+                send_draft(c, did, f.get("subject"), f.get("body"))
+            return self.redirect(self.headers.get("Referer") or "/laiskai")
+        if p == "/laiskai-eile":
+            if f.get("a") == "siusti" and f["_ids"]:
+                c.executemany("UPDATE drafts SET status='eileje', error=NULL WHERE id=? AND status IN ('laukia','klaida')", [(i,) for i in f["_ids"]]); c.commit()
+            elif f.get("a") == "atsaukti":
+                c.execute("UPDATE drafts SET status='laukia' WHERE status='eileje'"); c.commit()
+            return self.redirect("/laiskai?statusas=" + urllib.parse.quote(f.get("back") or "laukia"))
         if p == "/testas-pasto":
             s = db.load_settings()
             try:
@@ -385,5 +430,6 @@ document.addEventListener('submit',async ev=>{const f=ev.target,m=f.dataset.ajax
 
 if __name__ == "__main__":
     db.conn()
+    threading.Thread(target=queue_worker, daemon=True).start()
     print("Panel :8000", flush=True)
     ThreadingHTTPServer(("0.0.0.0", 8000), H).serve_forever()
