@@ -19,20 +19,21 @@ Kiekvienam:
   „Pagarbiai,\nGalios Pikas – mobilus automobilių programavimas, Vilnius\nTel. +37062142133\ninfo@galiospikas.lt | galiospikas.lt“
 - Pirmas sakinys – trumpai, kas mes: „Esame Galios Pikas – mobilus automobilių programavimas ir diagnostika Vilniuje.“ (galima perfrazuoti).
 - NIEKADA neaprašinėk jų pačių verslo („matome, kad jūs atliekate...“, „jūsų įmonė užsiima...“) – jie tai žino. Svetainę skaityk tik tam, kad parinktum tinkamą pasiūlymą.
-- Tada 1 sakinys – pasiūlymas JŲ tipui (žr. žemiau), ir **paslaugų sąrašas su brūkšneliais (4–6 punktai)**, parinktas jiems aktualiausias iš verslas.md, pvz.:
+- Tada 1 sakinys – pasiūlymas JŲ tipui (žr. žemiau).
+- Iškart po jo, PRIEŠ paslaugų sąrašą, būtent šis sakinys: „Atvykstame į jūsų servisą Vilniuje ir apylinkėse, darbus atliekame vietoje.“ (ne servisui – „pas jus“ vietoj „į jūsų servisą“).
+- Tada **paslaugų sąrašas su brūkšneliais (4–6 punktai)**, parinktas jiems aktualiausias iš verslas.md, pvz.:
   - Chiptuning: Stage 1 / Stage 2 / ECO, pavarų dėžių (TCU) programavimas
   - DPF, EGR, AdBlue/SCR, NOx gedimų sprendimai ir programavimas
   - ECU / TCU klonavimas ir blokų pririšimas, IMMO
   - Sklendžių (swirl), lambda, hot start ir kitų klaidų sprendimai
   - Kompiuterinė diagnostika: lengvieji, sunkvežimiai, motociklai
   Sunkvežimių/transporto įmonėms pirmiausia – diagnostika, AdBlue/SCR/DPF, ECO programos; autoservisams – ECU/DPF/EGR darbai, klonavimas, IMMO; prekeiviams – diagnostika prieš pardavimą, klaidų šalinimas, galios didinimas.
-- Po sąrašo 1 sakinys: atvykstame pas juos, darbai atliekami vietoje.
 - Pasiūlymas pagal tipą:
   - autoservisui: bendradarbiavimas – perduokite mums programavimo/ECU/DPF/EGR darbus, kurių neatliekate; partnerio kainos.
   - automobilių prekeiviui/importuotojui: diagnostika prieš pardavimą, klaidų sprendimai, galios didinimas klientams.
   - įmonei su parku/sunkvežimiais: sunkvežimių ir lengvųjų diagnostika, AdBlue/SCR/DPF gedimų sprendimai, ECO programos kuro taupymui.
   - motociklų servisui: motociklų diagnostika ir programavimas.
-- Paminėk, kad atvykstame pas juos (mobiliai) – darbai atliekami jų vietoje.
+- Sakinio apie atvykimą po sąrašo nebekartok.
 - Niekada nerašyk fizinio adreso.
 - Vienas aiškus klausimas pabaigoje (pvz. „Ar būtų įdomu trumpai pasikalbėti šią savaitę?“).
 - Paskutinė eilutė po parašo: „Jei tokie pasiūlymai neaktualūs – atsakykite „Ne“, ir daugiau nerašysime.“
